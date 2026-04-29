@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply m-0 min-h-svh bg-abnb-canvas font-sans text-abnb-ink antialiased;
+  }
+
+  ::selection {
+    @apply bg-abnb-primary/15 text-abnb-ink;
+  }
+}
+
+@keyframes feed-picker-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.45);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes feed-picker-shell-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes feed-home-post-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-feed-picker-shell {
+  animation: feed-picker-shell-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.feed-react-picker-chip {
+  animation: feed-picker-pop 0.42s cubic-bezier(0.34, 1.45, 0.64, 1) backwards;
+}
+
+.feed-home-post-enter {
+  animation: feed-home-post-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-feed-picker-shell,
+  .feed-react-picker-chip,
+  .feed-home-post-enter {
+    animation: none;
+  }
+}
+
+@layer components {
+  .abnb-prose a {
+    @apply text-abnb-ink underline decoration-abnb-hairline underline-offset-2 transition-colors hover:text-abnb-primary;
+  }
+
+  /** Khung section — nhịp dọc marketing */
+  .lp-section {
+    @apply py-20 md:py-24 lg:py-28;
+  }
+
+  .lp-container {
+    @apply mx-auto max-w-abnb px-4 sm:px-6 lg:px-10;
+  }
+}

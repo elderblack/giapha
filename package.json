@@ -1,0 +1,18 @@
+{
+  "name": "giapha",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:plan": "pnpm --filter dev-plan dev",
+    "build": "pnpm --filter web build",
+    "build:web": "pnpm --filter web build",
+    "build:plan": "pnpm --filter dev-plan build",
+    "lint:web": "pnpm --filter web lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

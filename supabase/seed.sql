@@ -1,0 +1,1 @@
+-- Seed tùy chọn — bổ sung dữ liệu mẫu khi chạy supabase db reset
