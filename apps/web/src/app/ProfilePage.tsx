@@ -1,4 +1,4 @@
-import { Camera, Home, Loader2, Settings, Upload } from 'lucide-react'
+import { Camera, Home, Loader2, MessageCircle, Settings, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
@@ -29,7 +29,8 @@ export function ProfilePage() {
   const sb = getSupabase()
 
   const profileUserId = paramUserId ?? user?.id ?? null
-  const isSelf = Boolean(user?.id && profileUserId && user.id === profileUserId)
+  const uid = user?.id ?? null
+  const isSelf = Boolean(uid && profileUserId && uid === profileUserId)
 
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState<string | null>(null)
@@ -39,12 +40,34 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null)
   const [tab, setTab] = useState<'posts' | 'photos' | 'about'>('posts')
+  const [isFriend, setIsFriend] = useState(false)
+  const [dmBusy, setDmBusy] = useState(false)
 
   useEffect(() => {
     if (paramUserId && user?.id && paramUserId === user.id) {
       navigate('/app/profile', { replace: true })
     }
   }, [paramUserId, user?.id, navigate])
+
+  useEffect(() => {
+    if (!sb || !uid || !profileUserId || isSelf) {
+      setIsFriend(false)
+      return
+    }
+    let mounted = true
+    void (async () => {
+      const low = uid < profileUserId ? uid : profileUserId
+      const high = uid < profileUserId ? profileUserId : uid
+      const { data } = await sb
+        .from('family_friendships')
+        .select('user_low')
+        .eq('user_low', low)
+        .eq('user_high', high)
+        .maybeSingle()
+      if (mounted) setIsFriend(Boolean(data))
+    })()
+    return () => { mounted = false }
+  }, [sb, uid, profileUserId, isSelf])
 
   useEffect(() => {
     if (!profileUserId || !sb) {
@@ -152,6 +175,14 @@ export function ProfilePage() {
     }
     if (coverCropSrc) URL.revokeObjectURL(coverCropSrc)
     setCoverCropSrc(URL.createObjectURL(file))
+  }
+
+  async function openDm() {
+    if (!sb || !profileUserId || isSelf) return
+    setDmBusy(true)
+    const { data, error } = await sb.rpc('family_chat_open_dm', { other_user_id: profileUserId })
+    setDmBusy(false)
+    if (!error && data) navigate(`/app/chat/${data as string}`)
   }
 
   function closeCoverCropWithoutSave() {
@@ -299,6 +330,17 @@ export function ProfilePage() {
                   <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
                     {isSelf ? 'Thêm giới thiệu trong Cài đặt tài khoản.' : 'Chưa có tiểu sử công khai.'}
                   </p>
+                )}
+                {!isSelf && isFriend && (
+                  <button
+                    type="button"
+                    disabled={dmBusy}
+                    onClick={() => void openDm()}
+                    className={`${role.btnPrimary} !h-10 !px-5 !text-[13px] mt-3`}
+                  >
+                    <MessageCircle className="mr-1.5 inline h-4 w-4" strokeWidth={2} />
+                    Nhắn tin
+                  </button>
                 )}
               </div>
             </div>

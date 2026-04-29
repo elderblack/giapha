@@ -61,9 +61,17 @@ Cập nhật: **tháng 4/2026** (bổ sung Phase 4 feed & kết nối).
 
 **Cloud:** chạy migration Phase 4; kiểm tra publication Realtime và bucket trên Dashboard nếu cần.
 
-## Phase 5+ (dự kiến)
+## Phase 5 — Chat realtime DM (mã nguồn)
 
-- **Phase 5** — Chat realtime (theo `devPlan` Phase 5): tin nhắn, badge, push.
+**Đã có**
+
+- Backend: `family_chat_conversations`, `family_chat_participants`, `family_chat_messages` + RLS (chỉ participant xem/gửi) + RPC `family_chat_open_dm` (kiểm tra friendship). Storage bucket `family-chat-media` + policies. Trigger thông báo tin nhắn (`chat_message` → `family_notifications`). Publication Realtime trên `family_chat_messages`.
+- Web: Route `/app/chat` + `/app/chat/:conversationId`; `ChatShell`, `ThreadList`, `MessageList`, `MessageComposer`; badge tin chưa đọc (icon shell); typing indicator + online presence (Supabase Broadcast + Presence channel). Nút "Nhắn tin" trên **Kết nối** và hồ sơ người khác.
+
+**Cloud:** chạy migration `20260801120000_phase5_chat_realtime.sql`; kiểm tra publication Realtime trên `family_chat_messages` và bucket `family-chat-media` trên Dashboard. Realtime local: `supabase start` tự bật publication cho bảng đã khai báo.
+
+## Phase 6+ (dự kiến)
+
 - Sau đó: tìm kiếm công khai / monetization (nếu có).
 
 ---

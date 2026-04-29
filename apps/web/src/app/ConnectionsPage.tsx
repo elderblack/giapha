@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Loader2, UserPlus, Users } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Loader2, MessageCircle, UserPlus, Users } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { getSupabase } from '../lib/supabase'
 import { role } from '../design/roles'
@@ -11,6 +11,7 @@ export function ConnectionsPage() {
   const { user } = useAuth()
   const sb = getSupabase()
   const uid = user?.id
+  const navigate = useNavigate()
   const [treeId, setTreeId] = useState<string | null>(null)
   const [treeName, setTreeName] = useState<string | null>(null)
   const [suggested, setSuggested] = useState<ProfileLite[]>([])
@@ -150,6 +151,21 @@ export function ConnectionsPage() {
         await sb.from('family_feed_follows').insert({ follower_id: uid, following_id: targetId })
       }
       await load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function openDm(otherUserId: string) {
+    if (!sb) return
+    setBusyId(`dm-${otherUserId}`)
+    try {
+      const { data, error } = await sb.rpc('family_chat_open_dm', { other_user_id: otherUserId })
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      navigate(`/app/chat/${data as string}`)
     } finally {
       setBusyId(null)
     }
@@ -310,11 +326,20 @@ export function ConnectionsPage() {
                 {friends.map((p) => (
                   <li
                     key={p.id}
-                    className={`${role.cardQuiet} rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3 font-medium`}
+                    className={`${role.cardQuiet} flex flex-wrap items-center justify-between gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3`}
                   >
                     <Link to={`/app/u/${p.id}`} className={`${role.link} font-semibold text-abnb-ink no-underline`}>
                       {p.full_name}
                     </Link>
+                    <button
+                      type="button"
+                      disabled={busyId === `dm-${p.id}`}
+                      className={`${role.btnSecondary} !h-10 !min-h-0 !px-4 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                      onClick={() => void openDm(p.id)}
+                    >
+                      <MessageCircle className="mr-1.5 inline h-3.5 w-3.5" strokeWidth={2} />
+                      Nhắn tin
+                    </button>
                   </li>
                 ))}
               </ul>

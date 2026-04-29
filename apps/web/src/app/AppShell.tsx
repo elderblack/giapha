@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LogOut, Settings, TreePine, Users, UserRound } from 'lucide-react'
+import { ChatBadge } from './chat/ChatBadge'
 import { NotificationBell } from './NotificationBell'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
@@ -48,6 +49,7 @@ export function AppShell() {
             </NavLink>
           </nav>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <ChatBadge />
             <NotificationBell />
             <details className="group relative shrink-0">
               <summary

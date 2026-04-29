@@ -14,6 +14,8 @@ import { TreeOverviewPage } from './app/TreeOverviewPage'
 import { TreeChartPage } from './app/TreeChartPage'
 import { TreeMembersPage } from './app/TreeMembersPage'
 import { TreesListPage } from './app/TreesListPage'
+import { ChatShell } from './app/chat/ChatShell'
+import { ChatThreadPage } from './app/chat/ChatThreadPage'
 import { ConnectionsPage } from './app/ConnectionsPage'
 import { RequireAuth } from './auth/RequireAuth'
 import { LandingPage } from './pages/landing/LandingPage'
@@ -53,6 +55,9 @@ export default function App() {
         <Route path="u/:userId" element={<ProfilePage />} />
         <Route path="claim-invite" element={<ClaimInvitePage />} />
         <Route path="connections" element={<ConnectionsPage />} />
+        <Route path="chat" element={<ChatShell />}>
+          <Route path=":conversationId" element={<ChatThreadPage />} />
+        </Route>
         <Route path="trees" element={<TreesListPage />} />
         <Route path="trees/new" element={<TreeCreatePage />} />
         <Route path="trees/:treeId" element={<TreeDetailLayout />}>

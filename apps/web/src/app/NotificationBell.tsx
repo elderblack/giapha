@@ -28,6 +28,8 @@ function payloadSummary(kind: string, _payload: Record<string, unknown>): string
       return 'Lời mời kết bạn mới.'
     case 'friend_request_accepted':
       return 'Lời mời kết bạn đã được chấp nhận.'
+    case 'chat_message':
+      return 'Bạn có tin nhắn mới.'
     default:
       return 'Thông báo mới.'
   }
