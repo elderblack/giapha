@@ -3,12 +3,21 @@ dist
 .env
 .env.local
 .env.*.local
+# Các biến thể .env (không commit example)
+.env.*
+!.env.example
+!**/.env.example
 .DS_Store
 *.log
 .supabase
 .cursor-mcp-deploy-waitlist.json
 # Secrets cho Edge Functions local (`supabase functions serve`)
 supabase/.env
+# CLI Supabase cache (project ref, version — không nên vào repo)
+supabase/.temp/
+
+# MCP Playwright (artifact local)
+.playwright-mcp/
 
 # Playwright
 /playwright-report/
