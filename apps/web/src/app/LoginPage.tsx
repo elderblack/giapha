@@ -9,7 +9,7 @@ import { role } from '../design/roles'
 /** Callback Supabase Auth; `next` được AuthCallback đọc sau magic link / xác nhận email / OAuth. */
 function authCallbackRedirectUrl(postAuthPath: string) {
   const base =
-    import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') ?? `${window.location.origin}`
+    import.meta.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? `${window.location.origin}`
   const callback = `${base}/app/auth/callback`
   const safe =
     postAuthPath.startsWith('/app') && !postAuthPath.startsWith('//')

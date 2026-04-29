@@ -6,7 +6,7 @@ import { role } from '../design/roles'
 
 function recoverRedirectUrl() {
   const base =
-    import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') ?? `${window.location.origin}`
+    import.meta.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? `${window.location.origin}`
   const callback = `${base}/app/auth/callback`
   return `${callback}?next=${encodeURIComponent('/app/reset-password')}`
 }

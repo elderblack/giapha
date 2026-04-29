@@ -1,7 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const url =
-  import.meta.env.VITE_SUPABASE_URL ?? import.meta.env.NEXT_PUBLIC_SUPABASE_URL
+const url = import.meta.env.NEXT_PUBLIC_SUPABASE_URL
 
 /**
  * Supabase Edge Functions (verify_jwt) yêu cầu header là JWT (legacy anon).
@@ -9,9 +8,7 @@ const url =
  * Ưu tiên anon JWT; publishable chỉ là fallback cho PostgREST khi chưa có JWT.
  */
 const anon =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ??
   import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
   import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 let client: SupabaseClient | null = null
