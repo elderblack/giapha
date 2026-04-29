@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { ImageOff, Maximize2, X } from 'lucide-react'
 import { useFeedImageLayout } from './useFeedImageLayout'
+import { FeedScrollVideo } from './FeedScrollVideo'
 
 /** Một ô media (ảnh trong bài hoặc preview blob URL khi đăng). */
 export type FeedAttachmentItem = {
@@ -79,6 +80,7 @@ function MediaTileCover({
   className,
   photoFit = 'cover',
   boxMode = 'fill-cell',
+  scrollAutoplay = true,
 }: {
   item: FeedAttachmentItem
   className?: string
@@ -88,6 +90,8 @@ function MediaTileCover({
    * `contain-box`: thu trong khung có max — dùng cho 1 ảnh trong composer, tránh ảnh gốc rộng/phá flex.
    */
   boxMode?: 'fill-cell' | 'contain-box'
+  /** Bản tin: tự phát khi cuộn tới (muted). Composer: false — chỉ xem/thao tác tay. */
+  scrollAutoplay?: boolean
 }) {
   const [imgBroken, setImgBroken] = useState(false)
   const [videoBroken, setVideoBroken] = useState(false)
@@ -107,9 +111,13 @@ function MediaTileCover({
 
   if (item.kind === 'video') {
     if (videoBroken) return <VideoBrokenPlaceholder />
+    if (scrollAutoplay) {
+      return <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} />
+    }
     return (
       <video
         src={item.url}
+        muted
         controls
         playsInline
         preload="metadata"
@@ -351,7 +359,7 @@ function ComposerMosaic({ items }: { items: FeedAttachmentItem[] }) {
   function cell(it: FeedAttachmentItem, overlayChild?: ReactNode) {
     return (
       <div key={it.key} className="relative min-h-0 min-w-0 overflow-hidden bg-neutral-950/10">
-        <MediaTileCover item={it} />
+        <MediaTileCover item={it} scrollAutoplay={false} />
         {overlayChild}
       </div>
     )
@@ -363,7 +371,7 @@ function ComposerMosaic({ items }: { items: FeedAttachmentItem[] }) {
     return (
       <div className={`${shell} relative mx-auto flex w-full min-w-0 max-w-full items-center justify-center`}>
         <div className="flex h-full w-full min-w-0 max-w-full items-center justify-center overflow-hidden px-2 py-2">
-          <MediaTileCover item={it} photoFit="contain" boxMode="contain-box" />
+          <MediaTileCover item={it} photoFit="contain" boxMode="contain-box" scrollAutoplay={false} />
         </div>
       </div>
     )
@@ -382,7 +390,7 @@ function ComposerMosaic({ items }: { items: FeedAttachmentItem[] }) {
     return (
       <div className={`${shell} grid grid-cols-2 grid-rows-2 gap-0`}>
         <div key={a.key} className="relative row-span-2 min-h-0 overflow-hidden">
-          <MediaTileCover item={a} />
+          <MediaTileCover item={a} scrollAutoplay={false} />
         </div>
         {cell(b)}
         {cell(c)}
@@ -472,14 +480,7 @@ function SingleFeedHeroMedia({ item }: { item: FeedAttachmentItem }) {
   if (item.kind === 'video') {
     if (videoBroken) return <VideoBrokenPlaceholder minHeight="min-h-[200px]" />
     return (
-      <video
-        src={item.url}
-        controls
-        playsInline
-        preload="metadata"
-        className={fit}
-        onError={() => setVideoBroken(true)}
-      />
+      <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} />
     )
   }
 

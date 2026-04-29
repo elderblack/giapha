@@ -145,11 +145,28 @@ function clampIndex(i: number, len: number) {
 function ViewerStage({ item }: { item: FeedAttachmentItem }) {
   const [imgBroken, setImgBroken] = useState(false)
   const [videoBroken, setVideoBroken] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     setImgBroken(false)
     setVideoBroken(false)
   }, [item.key, item.url])
+
+  useEffect(() => {
+    if (item.kind !== 'video') return
+    const v = videoRef.current
+    if (!v) return
+    v.muted = true
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return () => {
+        v.pause()
+      }
+    }
+    void v.play().catch(() => {})
+    return () => {
+      v.pause()
+    }
+  }, [item.kind, item.key, item.url])
 
   const fit =
     'max-h-[calc(100dvh-8rem)] max-w-[100vw] object-contain sm:max-h-[min(92dvh,_900px)] lg:max-h-[min(94dvh,_900px)]'
@@ -160,9 +177,11 @@ function ViewerStage({ item }: { item: FeedAttachmentItem }) {
     if (videoBroken) return <BrokenBadge label="Không phát được" />
     return (
       <video
+        ref={videoRef}
         key={item.url}
         src={item.url}
         controls
+        muted
         playsInline
         preload="metadata"
         className={fit}
