@@ -78,18 +78,28 @@ function MediaTileCover({
   item,
   className,
   photoFit = 'cover',
+  boxMode = 'fill-cell',
 }: {
   item: FeedAttachmentItem
   className?: string
   photoFit?: 'cover' | 'contain'
+  /**
+   * `fill-cell`: lấp đầy ô lưới (mặc định feed + mosaic).
+   * `contain-box`: thu trong khung có max — dùng cho 1 ảnh trong composer, tránh ảnh gốc rộng/phá flex.
+   */
+  boxMode?: 'fill-cell' | 'contain-box'
 }) {
   const [imgBroken, setImgBroken] = useState(false)
   const [videoBroken, setVideoBroken] = useState(false)
 
   const onImgError = useCallback(() => setImgBroken(true), [])
 
-  const base =
+  const baseFill =
     'h-full min-h-0 w-full [-webkit-touch-callout:none] [touch-action:manipulation] select-none [&_::-webkit-media-controls]:pointer-events-auto'
+  /** Không ép h-full/w-full để không nới min intrinsic width của ảnh gốc. */
+  const baseContainBox =
+    'h-auto max-h-full w-auto max-w-full min-h-0 min-w-0 [-webkit-touch-callout:none] [touch-action:manipulation] select-none [&_::-webkit-media-controls]:pointer-events-auto'
+  const base = boxMode === 'contain-box' ? baseContainBox : baseFill
 
   const object =
     photoFit === 'contain' ? 'object-contain object-center' : 'object-cover object-center'
@@ -317,9 +327,9 @@ function FeedMediaCluster({
   )
 }
 
-/** Khung mosaic trong composer (gọn, 2×2 / 1+2). */
+/** Khung mosaic trong composer — min-w-0 + max-h để ảnh không phá flex ngang. */
 const MOSAIC_SHELL_COMPOSER =
-  'h-[min(54vw,_260px)] max-h-[min(46vh,_300px)] min-h-[180px] w-full sm:h-[clamp(188px,_48vw,_280px)]'
+  'h-[min(54vw,_260px)] max-h-[min(46vh,_300px)] min-h-[180px] w-full min-w-0 max-w-full sm:h-[clamp(188px,_48vw,_280px)]'
 
 /** Composer trong modal — bố cục ô lớn + lưới. */
 function ComposerMosaic({ items }: { items: FeedAttachmentItem[] }) {
@@ -351,9 +361,9 @@ function ComposerMosaic({ items }: { items: FeedAttachmentItem[] }) {
   if (mosaicItems.length === 1) {
     const it = mosaicItems[0]
     return (
-      <div className={`${shell} relative flex items-center justify-center`}>
-        <div className="flex h-full w-full items-center justify-center px-2 py-2">
-          <MediaTileCover item={it} photoFit="contain" className="max-h-full max-w-full" />
+      <div className={`${shell} relative mx-auto flex w-full min-w-0 max-w-full items-center justify-center`}>
+        <div className="flex h-full w-full min-w-0 max-w-full items-center justify-center overflow-hidden px-2 py-2">
+          <MediaTileCover item={it} photoFit="contain" boxMode="contain-box" />
         </div>
       </div>
     )

@@ -3,6 +3,8 @@ import { role } from '../../design/roles'
 import type { FeedCommentRow, FeedPostState } from './feedQueries'
 import type { FeedReactionKind } from './reactionKinds'
 import { FeedReactionBar } from './FeedReactionBar'
+import { FeedCommentLine } from './FeedCommentLine'
+import { feedUserProfilePath } from './feedProfileHref'
 import { formatFeedDt } from './feedDate'
 
 export type FeedPostViewerSidebarProps = {
@@ -54,11 +56,17 @@ export function FeedPostPhotoViewerSidebar({
 
       <div className="border-b border-white/[0.08] px-4 pb-4 pt-3">
         <div className="flex gap-3">
-          <ViewerAvatar url={profile?.avatar_url ?? null} label={initials} />
+          <Link
+            to={feedUserProfilePath(post.author_id)}
+            className="shrink-0 rounded-full outline-none ring-offset-2 ring-offset-[#242526] transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-[#bcc0c7]/35"
+            aria-label={`Hồ sơ ${profile?.full_name?.trim() || 'thành viên'}`}
+          >
+            <ViewerAvatar url={profile?.avatar_url ?? null} label={initials} />
+          </Link>
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold leading-snug">
               <Link
-                to={`/app/u/${post.author_id}`}
+                to={feedUserProfilePath(post.author_id)}
                 className="text-[#e4e6eb] underline-offset-2 hover:underline"
               >
                 {profile?.full_name ?? 'Thành viên'}
@@ -107,14 +115,20 @@ export function FeedPostPhotoViewerSidebar({
         ) : (
           post.comments.map((c) => (
             <div key={c.id} className="rounded-lg bg-[#3a3b3c]/95 px-3 py-2">
-              <CommentLine comment={c} currentUserId={currentUserId} onDelete={onDeleteComment} />
+              <FeedCommentLine
+                comment={c}
+                currentUserId={currentUserId}
+                onDelete={onDeleteComment}
+                variant="theater"
+              />
               <div className="ml-2 mt-2 space-y-2 border-l border-white/10 pl-3">
                 {c.replies.map((r) => (
-                  <CommentLine
+                  <FeedCommentLine
                     key={r.id}
                     comment={{ ...r, replies: [], profiles: r.profiles }}
                     currentUserId={currentUserId}
                     onDelete={onDeleteComment}
+                    variant="theater"
                   />
                 ))}
                 {currentUserId ? (
@@ -195,29 +209,6 @@ function commentCount(p: FeedPostState): number {
   let n = p.comments.length
   for (const c of p.comments) n += c.replies.length
   return n
-}
-
-function CommentLine({
-  comment,
-  currentUserId,
-  onDelete,
-}: {
-  comment: FeedCommentRow & { replies: unknown[]; profiles?: FeedPostState['profiles'] }
-  currentUserId: string | undefined
-  onDelete: (id: string) => void
-}) {
-  const del = Boolean(currentUserId && comment.author_id === currentUserId)
-  return (
-    <div className={`${role.bodySm} flex flex-wrap gap-2 text-[13px]`}>
-      <span className="font-semibold text-[#e4e6eb]">{comment.profiles?.full_name ?? 'Thành viên'}</span>
-      <span className="min-w-[12rem] flex-1 whitespace-pre-wrap text-[#e4e6eb]/92">{comment.body}</span>
-      {del ? (
-        <button type="button" className="shrink-0 text-[11px] font-semibold uppercase text-red-400" onClick={() => onDelete(comment.id)}>
-          Xoá
-        </button>
-      ) : null}
-    </div>
-  )
 }
 
 function replyHint(post: FeedPostState, id: string) {

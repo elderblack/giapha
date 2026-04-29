@@ -1,4 +1,6 @@
 import { Clapperboard, ImagePlus, Smile } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
 import { role } from '../../design/roles'
 import { firstNameHint } from './composerNaming'
 import { useComposerProfile } from './useComposerProfile'
@@ -14,7 +16,7 @@ function AvatarSm({
   if (url) {
     return (
       <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-abnb-surfaceSoft ring-2 ring-white shadow-abnb sm:h-10 sm:w-10">
-        <img src={url} alt="" className="h-full w-full object-cover" />
+        <img src={url} alt="" className="h-full w-full max-h-full max-w-full object-cover" />
       </span>
     )
   }
@@ -34,6 +36,7 @@ type Props = {
  * Trạng thái “bình thường” trên Feed: chỉ một hàng — bấm mở form đầy đủ trong modal.
  */
 export function FeedComposerCollapsed({ disabled, onOpen }: Props) {
+  const { user } = useAuth()
   const { displayName, avatarUrl } = useComposerProfile()
   const hint = firstNameHint(displayName)
 
@@ -43,7 +46,17 @@ export function FeedComposerCollapsed({ disabled, onOpen }: Props) {
         disabled ? 'pointer-events-none opacity-55' : ''
       }`}
     >
-      <AvatarSm url={avatarUrl} label={displayName} />
+      {user?.id ? (
+        <Link
+          to="/app/profile"
+          className="flex h-9 w-9 shrink-0 overflow-hidden rounded-full outline-none ring-offset-2 ring-offset-abnb-surfaceCard transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-abnb-primary/35 sm:h-10 sm:w-10"
+          aria-label="Hồ sơ của bạn"
+        >
+          <AvatarSm url={avatarUrl} label={displayName} />
+        </Link>
+      ) : (
+        <AvatarSm url={avatarUrl} label={displayName} />
+      )}
       <button
         type="button"
         disabled={disabled}

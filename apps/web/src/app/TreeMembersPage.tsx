@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Link2, Loader2, Pencil, Trash2, UserPlus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
@@ -19,6 +20,7 @@ import { applySpouseLink, clearMemberSpouse } from './tree/treeMemberDb'
 import { TreePageIntro } from './tree/TreeChrome'
 import { memberInitial, treeAlertErr } from './tree/treeUi'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
+import { feedUserProfilePath } from './feed/feedProfileHref'
 import { LunarFromSolarButton } from './tree/LunarFromSolarButton'
 
 type AccountRoleRow = {
@@ -484,15 +486,34 @@ export function TreeMembersPage() {
                 {!isEditing ? (
                   <div className="flex flex-col gap-4 p-5 pl-6 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 gap-4">
-                      <div
-                        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-abnb-primary/16 to-abnb-luxe/12 text-lg font-semibold text-abnb-primary shadow-abnb-inner ring-2 ring-abnb-canvas"
-                        aria-hidden
-                      >
-                        {memberInitial(m.full_name)}
-                      </div>
+                      {m.linked_profile_id ? (
+                        <Link
+                          to={feedUserProfilePath(m.linked_profile_id)}
+                          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-abnb-primary/16 to-abnb-luxe/12 text-lg font-semibold text-abnb-primary shadow-abnb-inner ring-2 ring-abnb-canvas outline-none transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-abnb-primary/40"
+                          aria-label={`Hồ sơ ${m.full_name}`}
+                        >
+                          {memberInitial(m.full_name)}
+                        </Link>
+                      ) : (
+                        <div
+                          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-abnb-primary/16 to-abnb-luxe/12 text-lg font-semibold text-abnb-primary shadow-abnb-inner ring-2 ring-abnb-canvas"
+                          aria-hidden
+                        >
+                          {memberInitial(m.full_name)}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-semibold text-abnb-ink">
-                        <span>{m.full_name}</span>
+                        {m.linked_profile_id ? (
+                          <Link
+                            to={feedUserProfilePath(m.linked_profile_id)}
+                            className={`${role.link} font-semibold text-abnb-ink no-underline hover:underline`}
+                          >
+                            {m.full_name}
+                          </Link>
+                        ) : (
+                          <span>{m.full_name}</span>
+                        )}
                         <span className="inline-flex rounded-full bg-abnb-surfaceSoft px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-abnb-muted ring-1 ring-abnb-hairlineSoft/70">
                           Thế hệ {gen}
                         </span>
@@ -927,7 +948,14 @@ export function TreeMembersPage() {
                       className="flex flex-col gap-3 rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-canvas/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
-                        <p className="font-semibold text-abnb-ink">{name}</p>
+                        <p className="font-semibold text-abnb-ink">
+                          <Link
+                            to={feedUserProfilePath(row.user_id)}
+                            className={`${role.link} font-semibold text-abnb-ink no-underline hover:underline`}
+                          >
+                            {name}
+                          </Link>
+                        </p>
                         <p className={`${role.caption} mt-0.5`}>
                           {isTreeOwner || row.role === 'owner'
                             ? 'Chủ dòng'

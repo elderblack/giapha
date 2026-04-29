@@ -174,8 +174,11 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
         </div>
       </section>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-12">
-        <section className="min-w-0" aria-label="Bản tin họ hàng">
+      <div className="mt-10 flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12">
+        <section
+          className="order-2 min-w-0 flex-1 overflow-x-clip lg:order-1"
+          aria-label="Bản tin họ hàng"
+        >
           <header className="mb-8 flex flex-col gap-1 border-b border-abnb-hairlineSoft/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className={`${role.headingModule} text-[1.125rem]`}>Bản tin dòng họ</h2>
@@ -188,7 +191,7 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
         </section>
 
         <aside
-          className="order-first flex flex-col gap-5 lg:order-last lg:sticky lg:top-24 lg:self-start"
+          className="order-1 flex w-full shrink-0 flex-col gap-5 lg:order-2 lg:sticky lg:top-24 lg:w-[min(100%,18rem)] lg:self-start"
           aria-label="Lối tắt và không gian dòng họ"
         >
           <div className={`${role.cardQuiet} rounded-abnb-xl border border-abnb-hairlineSoft/90 p-5 shadow-abnb-inner`}>

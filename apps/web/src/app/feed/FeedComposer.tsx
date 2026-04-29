@@ -64,7 +64,7 @@ function ComposerAvatar({
   if (url) {
     return (
       <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-abnb-surfaceSoft ring-2 ring-white shadow-abnb">
-        <img src={url} alt="" className="h-full w-full object-cover" />
+        <img src={url} alt="" className="h-full w-full max-h-full max-w-full object-cover" />
       </span>
     )
   }
@@ -211,7 +211,7 @@ export function FeedComposer({
       {embeddedInModal ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div
-            className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 [-webkit-overflow-scrolling:touch] ${pad} pt-4`}
+            className={`min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-3 [-webkit-overflow-scrolling:touch] ${pad} pt-4`}
           >
             <div className="flex gap-3">
               <ComposerAvatar url={profileAvatarUrl} label={displayName} />
@@ -293,7 +293,7 @@ export function FeedComposer({
             />
 
             {gridItems.length > 0 ? (
-              <div className="relative mt-3">
+              <div className="relative mt-3 min-w-0 max-w-full overflow-x-hidden">
                 <button
                   type="button"
                   disabled={blocked}
@@ -364,7 +364,7 @@ export function FeedComposer({
           </div>
         </div>
       ) : (
-        <div className={`${pad} pb-6 pt-4`}>
+        <div className={`${pad} min-w-0 pb-6 pt-4`}>
           <div className="flex gap-3">
             <ComposerAvatar url={profileAvatarUrl} label={displayName} />
             <div className="min-w-0 flex-1">
@@ -441,7 +441,7 @@ export function FeedComposer({
           />
 
           {gridItems.length > 0 ? (
-            <div className="relative mt-3">
+            <div className="relative mt-3 min-w-0 max-w-full overflow-x-hidden">
               <button
                 type="button"
                 disabled={blocked}

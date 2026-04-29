@@ -10,6 +10,8 @@ import { FeedAttachmentGrid, type FeedAttachmentItem } from './FeedAttachmentGri
 import { FeedPostPhotoViewer } from './FeedPostPhotoViewer'
 import { FeedPostPhotoViewerSidebar } from './FeedPostPhotoViewerSidebar'
 import { formatFeedDt } from './feedDate'
+import { FeedCommentLine } from './FeedCommentLine'
+import { feedUserProfilePath } from './feedProfileHref'
 
 export const FeedPostCard = memo(function FeedPostCardInner({
   post,
@@ -128,13 +130,19 @@ export const FeedPostCard = memo(function FeedPostCardInner({
     <>
     <article className={`${role.cardElevated} !rounded-abnb-xl overflow-hidden px-5 py-5 transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-abnb-lg`}>
       <header className="flex items-start gap-3">
-        <Avatar url={profile?.avatar_url ?? null} label={initials} />
+        <Link
+          to={feedUserProfilePath(post.author_id)}
+          className="shrink-0 rounded-full outline-none ring-offset-2 ring-offset-abnb-surfaceCard transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-abnb-primary/35"
+          aria-label={`Hồ sơ ${profile?.full_name?.trim() || 'thành viên'}`}
+        >
+          <Avatar url={profile?.avatar_url ?? null} label={initials} />
+        </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[14px] font-semibold leading-tight text-abnb-ink">
                 <Link
-                  to={`/app/u/${post.author_id}`}
+                  to={feedUserProfilePath(post.author_id)}
                   className="text-abnb-ink underline-offset-2 hover:text-abnb-primary hover:underline"
                 >
                   {profile?.full_name ?? 'Thành viên'}
@@ -189,15 +197,21 @@ export const FeedPostCard = memo(function FeedPostCardInner({
         <section className="mt-5 space-y-5 border-t border-abnb-hairlineSoft/60 pt-4">
           {post.comments.map((c) => (
             <div key={c.id} className="rounded-abnb-lg bg-abnb-canvas/80 px-3 py-2">
-              <CommentLine comment={c} currentUserId={currentUserId} onDelete={(id) => void deleteComment(id)} />
+              <FeedCommentLine
+                comment={c}
+                currentUserId={currentUserId}
+                onDelete={(id) => void deleteComment(id)}
+                variant="feed"
+              />
 
               <div className="ml-2 mt-2 space-y-2 border-l border-abnb-hairlineSoft/90 pl-3">
                 {c.replies.map((r) => (
-                  <CommentLine
+                  <FeedCommentLine
                     key={r.id}
                     comment={{ ...r, replies: [], profiles: r.profiles }}
                     currentUserId={currentUserId}
                     onDelete={(id) => void deleteComment(id)}
+                    variant="feed"
                   />
                 ))}
                 {currentUserId ? (
@@ -292,29 +306,6 @@ export const FeedPostCard = memo(function FeedPostCardInner({
 
 function replyHint(post: FeedPostState, id: string) {
   return post.comments.find((c) => c.id === id)?.profiles?.full_name ?? ''
-}
-
-function CommentLine({
-  comment,
-  currentUserId,
-  onDelete,
-}: {
-  comment: FeedCommentRow & { replies: unknown[]; profiles?: FeedPostState['profiles'] }
-  currentUserId: string | undefined
-  onDelete: (id: string) => void
-}) {
-  const del = Boolean(currentUserId && comment.author_id === currentUserId)
-  return (
-    <div className={`${role.bodySm} flex flex-wrap gap-2`}>
-      <span className="font-semibold text-abnb-ink">{comment.profiles?.full_name ?? 'Thành viên'}</span>
-      <span className="min-w-[12rem] flex-1 whitespace-pre-wrap text-abnb-body">{comment.body}</span>
-      {del ? (
-        <button type="button" className="shrink-0 text-[11px] font-semibold uppercase text-abnb-error" onClick={() => onDelete(comment.id)}>
-          Xoá
-        </button>
-      ) : null}
-    </div>
-  )
 }
 
 function commentCount(p: FeedPostState): number {
