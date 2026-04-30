@@ -1,6 +1,7 @@
-import { Loader2, MessageCircle, Users } from 'lucide-react'
+import { MessageCircle, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { role } from '../../design/roles'
+import { ThreadListSkeleton } from './ChatSkeletons'
 import type { ChatThreadPreview } from './types'
 
 function formatTime(iso: string): string {
@@ -28,11 +29,7 @@ export function ThreadList(props: {
 }) {
   const mode = props.mode ?? 'link'
   if (props.loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-abnb-primary" />
-      </div>
-    )
+    return <ThreadListSkeleton />
   }
 
   if (props.threads.length === 0) {

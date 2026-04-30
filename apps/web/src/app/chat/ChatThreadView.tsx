@@ -1,8 +1,9 @@
-import { ArrowLeft, Loader2, Maximize2, Minus, Users, X } from 'lucide-react'
+import { ArrowLeft, Maximize2, Minus, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
+import { ChatThreadHeaderSkeleton } from './ChatSkeletons'
 import { markFamilyChatConversationRead } from './chatReadSync'
 import { MessageComposer } from './MessageComposer'
 import { MessageList } from './MessageList'
@@ -142,7 +143,7 @@ export function ChatThreadView(props: {
               <ArrowLeft className="h-5 w-5" strokeWidth={2} />
             </Link>
             {headerLoading ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-abnb-muted" />
+              <ChatThreadHeaderSkeleton />
             ) : (
               <div className="flex min-w-0 items-center gap-2.5">
                 {avatar}
@@ -154,7 +155,7 @@ export function ChatThreadView(props: {
           <>
             <div className="flex min-w-0 flex-1 items-center gap-2">
               {headerLoading ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-abnb-muted" />
+                <ChatThreadHeaderSkeleton />
               ) : (
                 <>
                   {avatar}

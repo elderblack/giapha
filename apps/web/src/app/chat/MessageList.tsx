@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react'
+import { MessageListSkeleton } from './ChatSkeletons'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
 import type { ChatMessage } from './types'
@@ -36,11 +36,7 @@ export function MessageList(props: {
   const uid = user?.id
 
   if (props.loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-abnb-primary" />
-      </div>
-    )
+    return <MessageListSkeleton />
   }
 
   if (props.messages.length === 0) {

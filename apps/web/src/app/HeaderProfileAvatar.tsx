@@ -10,9 +10,11 @@ export function HeaderProfileAvatar() {
   const uid = user?.id
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [initial, setInitial] = useState('?')
+  const [profileReady, setProfileReady] = useState(false)
 
   useEffect(() => {
     if (!sb || !uid) return
+    setProfileReady(false)
     let cancel = false
     void sb
       .from('profiles')
@@ -20,11 +22,13 @@ export function HeaderProfileAvatar() {
       .eq('id', uid)
       .maybeSingle()
       .then(({ data }) => {
-        if (cancel || !data) return
-        const row = data as { avatar_url: string | null; full_name: string | null }
-        setAvatarUrl(row.avatar_url ?? null)
-        const ch = row.full_name?.trim()?.[0]
-        setInitial(ch ? ch.toUpperCase() : '?')
+        if (!cancel && data) {
+          const row = data as { avatar_url: string | null; full_name: string | null }
+          setAvatarUrl(row.avatar_url ?? null)
+          const ch = row.full_name?.trim()?.[0]
+          setInitial(ch ? ch.toUpperCase() : '?')
+        }
+        if (!cancel) setProfileReady(true)
       })
     return () => {
       cancel = true
@@ -40,7 +44,12 @@ export function HeaderProfileAvatar() {
       aria-label="Hồ sơ của tôi"
       title="Hồ sơ"
     >
-      {avatarUrl ? (
+      {!profileReady ? (
+        <span
+          className="block h-full w-full animate-pulse bg-abnb-hairlineSoft/70"
+          aria-hidden
+        />
+      ) : avatarUrl ? (
         <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
       ) : (
         <span className="text-[13px] font-bold uppercase text-abnb-muted">{initial}</span>

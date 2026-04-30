@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { role } from '../../design/roles'
 import { getSupabase } from '../../lib/supabase'
-import { broadcastFamilyChatThreadsReload } from './chatReadSync'
+import { ChatPickMemberListSkeleton } from './ChatSkeletons'
 
 type ProfileRow = { id: string; full_name: string; avatar_url: string | null }
 
@@ -167,9 +167,7 @@ export function ChatCreateGroupModal(props: Props) {
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
           {loadingList ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-7 w-7 animate-spin text-abnb-primary" strokeWidth={2} />
-            </div>
+            <ChatPickMemberListSkeleton />
           ) : candidates.length === 0 ? (
             <p className={`${role.bodySm} px-1 py-8 text-center text-abnb-muted`}>
               Chưa có ai để thêm — kết bạn hoặc tham gia dòng họ trước nhé.
