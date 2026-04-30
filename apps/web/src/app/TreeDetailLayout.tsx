@@ -1,10 +1,11 @@
 import { Link, Outlet } from 'react-router-dom'
-import { ChevronLeft, Loader2 } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { getSupabase } from '../lib/supabase'
 import { role } from '../design/roles'
 import { TreeWorkspaceProvider } from './tree/TreeWorkspaceProvider'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { TreeRoleChip, TreeSubNav } from './tree/TreeChrome'
+import { TreeDetailHeaderSkeleton } from './tree/TreeTabSkeletons'
 
 function TreeDetailShell() {
   const { tree, treeId, treeLoadErr, isOwner, myTreeRole } = useTreeWorkspace()
@@ -15,12 +16,7 @@ function TreeDetailShell() {
   }
 
   if (tree === undefined) {
-    return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-abnb-primary" />
-        <p className={role.caption}>Đang mở dòng họ…</p>
-      </div>
-    )
+    return <TreeDetailHeaderSkeleton />
   }
 
   if (!tree) {

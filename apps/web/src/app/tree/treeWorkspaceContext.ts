@@ -10,7 +10,7 @@ export type TreeWorkspaceValue = {
   membersErr: string | null
   /** False khi DB chưa có migration cột `family_tree_members.phone` (đã fallback select không có phone). */
   supportsMemberPhoneColumn: boolean
-  loadMembers: () => Promise<void>
+  loadMembers: (opts?: { force?: boolean }) => Promise<void>
   isOwner: boolean
   /** Role trong family_tree_roles cho cây hiện tại (chủ thường có 'owner' trong bảng) */
   myTreeRole: 'owner' | 'editor' | 'member' | null

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
@@ -38,6 +38,8 @@ export function TreeWorkspaceProvider({
   const [err, setErr] = useState<string | null>(null)
   const [members, setMembers] = useState<MemberRow[] | null>(null)
   const [membersErr, setMembersErr] = useState<string | null>(null)
+  /** Tránh gọi API lặp khi chỉ đổi tab (cùng treeId): đánh dấu đã đã hoàn thành lần tải thành viên cho tree này. */
+  const membersLoadedForTreeRef = useRef<string | null>(null)
   const [supportsMemberPhoneColumn, setSupportsMemberPhoneColumn] = useState(true)
   const [myTreeRole, setMyTreeRole] = useState<'owner' | 'editor' | 'member' | null>(null)
   const [linkBusyId, setLinkBusyId] = useState<string | null>(null)
@@ -72,53 +74,66 @@ export function TreeWorkspaceProvider({
     }))
   }, [members])
 
-  const loadMembers = useCallback(async () => {
-    if (!sb || !treeId) return
-    let usePhoneCol = true
-    const r1 = await sb
-      .from('family_tree_members')
-      .select(MEMBERS_SELECT_WITH_PHONE)
-      .eq('family_tree_id', treeId)
-      .order('full_name')
-
-    let picked = r1
-    if (r1.error && memberPhoneMissingError(r1.error.message ?? '')) {
-      usePhoneCol = false
-      picked = (await sb
-        .from('family_tree_members')
-        .select(MEMBERS_SELECT_NO_PHONE)
-        .eq('family_tree_id', treeId)
-        .order('full_name')) as typeof r1
-    }
-
-    const { data, error } = picked
-    if (error) {
-      setSupportsMemberPhoneColumn(true)
-      setMembers([])
-      setMembersErr(error.message)
-      return
-    }
-
-    setSupportsMemberPhoneColumn(usePhoneCol)
-    const rows = (data as MemberRow[]) ?? []
-    const profileIds = [
-      ...new Set(rows.map((m) => m.linked_profile_id).filter((id): id is string => Boolean(id))),
-    ]
-    let avatarByProfile = new Map<string, string | null>()
-    if (profileIds.length > 0) {
-      const { data: profs, error: pe } = await sb.from('profiles').select('id, avatar_url').in('id', profileIds)
-      if (!pe && profs) {
-        avatarByProfile = new Map((profs as { id: string; avatar_url: string | null }[]).map((p) => [p.id, p.avatar_url]))
+  const loadMembers = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (!sb || !treeId) return
+      if (opts?.force) {
+        membersLoadedForTreeRef.current = null
       }
-    }
-    setMembersErr(null)
-    setMembers(
-      rows.map((m) => ({
-        ...m,
-        avatar_url: m.linked_profile_id ? (avatarByProfile.get(m.linked_profile_id) ?? null) : null,
-      })),
-    )
-  }, [sb, treeId])
+
+      try {
+        let usePhoneCol = true
+        const r1 = await sb
+          .from('family_tree_members')
+          .select(MEMBERS_SELECT_WITH_PHONE)
+          .eq('family_tree_id', treeId)
+          .order('full_name')
+
+        let picked = r1
+        if (r1.error && memberPhoneMissingError(r1.error.message ?? '')) {
+          usePhoneCol = false
+          picked = (await sb
+            .from('family_tree_members')
+            .select(MEMBERS_SELECT_NO_PHONE)
+            .eq('family_tree_id', treeId)
+            .order('full_name')) as typeof r1
+        }
+
+        const { data, error } = picked
+        if (error) {
+          setSupportsMemberPhoneColumn(true)
+          setMembers([])
+          setMembersErr(error.message)
+          return
+        }
+
+        setSupportsMemberPhoneColumn(usePhoneCol)
+        const rows = (data as MemberRow[]) ?? []
+        const profileIds = [
+          ...new Set(rows.map((m) => m.linked_profile_id).filter((id): id is string => Boolean(id))),
+        ]
+        let avatarByProfile = new Map<string, string | null>()
+        if (profileIds.length > 0) {
+          const { data: profs, error: pe } = await sb.from('profiles').select('id, avatar_url').in('id', profileIds)
+          if (!pe && profs) {
+            avatarByProfile = new Map(
+              (profs as { id: string; avatar_url: string | null }[]).map((p) => [p.id, p.avatar_url]),
+            )
+          }
+        }
+        setMembersErr(null)
+        setMembers(
+          rows.map((m) => ({
+            ...m,
+            avatar_url: m.linked_profile_id ? (avatarByProfile.get(m.linked_profile_id) ?? null) : null,
+          })),
+        )
+      } finally {
+        membersLoadedForTreeRef.current = treeId
+      }
+    },
+    [sb, treeId],
+  )
 
   useEffect(() => {
     if (!treeId || !sb) {
@@ -142,8 +157,14 @@ export function TreeWorkspaceProvider({
     }
   }, [treeId, sb])
 
+  useLayoutEffect(() => {
+    membersLoadedForTreeRef.current = null
+    setMembers(null)
+  }, [treeId])
+
   useEffect(() => {
     if (!tree || !treeId || !sb) return
+    if (membersLoadedForTreeRef.current === treeId) return
     const t = window.setTimeout(() => {
       void loadMembers()
     }, 0)
@@ -189,7 +210,7 @@ export function TreeWorkspaceProvider({
         setLinkMsg(claimRpcErrorVi(body?.error))
         return
       }
-      void loadMembers()
+      void loadMembers({ force: true })
     },
     [sb, loadMembers],
   )
@@ -210,7 +231,7 @@ export function TreeWorkspaceProvider({
         setLinkMsg(claimRpcErrorVi(body?.error))
         return
       }
-      void loadMembers()
+      void loadMembers({ force: true })
     },
     [sb, loadMembers],
   )

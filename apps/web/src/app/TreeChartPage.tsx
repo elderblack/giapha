@@ -7,6 +7,7 @@ import { role } from '../design/roles'
 import { useAuth } from '../auth/useAuth'
 import { TreePageIntro } from './tree/TreeChrome'
 import { treeAlertInfo } from './tree/treeUi'
+import { TreeChartPanelSkeleton } from './tree/TreeTabSkeletons'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { describeKinship } from '../lib/kinshipVi'
 import { AddMemberModal } from './tree/AddMemberModal'
@@ -55,7 +56,7 @@ export function TreeChartPage() {
   if (!tree) return null
 
   return (
-    <div className="animate-fade-up space-y-8">
+    <div className="space-y-8">
       <TreePageIntro kicker="Phả hệ" title="Sơ đồ quan hệ">
         Dùng cử chỉ hoặc chuột để kéo khung vẽ; chọn một người để xem chi tiết — trên điện thoại và máy tính bảng mở trong cửa sổ; trên màn hình lớn thông tin nằm ở cột bên phải.
       </TreePageIntro>
@@ -116,9 +117,7 @@ export function TreeChartPage() {
             style={{ minHeight: members === null ? 200 : 420 }}
           >
             {members === null ? (
-              <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 p-8">
-                <p className="text-sm font-medium text-abnb-muted">Đang tải dữ liệu cây…</p>
-              </div>
+              <TreeChartPanelSkeleton />
             ) : members.length === 0 ? (
               <div className="flex min-h-[280px] flex-col items-center justify-center gap-4 p-10 text-center">
                 <p className={`${role.bodyMd} text-abnb-muted`}>Chưa có thành viên để hiển thị.</p>
@@ -222,7 +221,7 @@ export function TreeChartPage() {
         myLinkedMemberId={myLinkedMemberId}
         supportsMemberPhoneColumn={supportsMemberPhoneColumn}
         onSaved={() => {
-          void loadMembers()
+          void loadMembers({ force: true })
         }}
       />
 

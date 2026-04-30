@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
 import { role } from '../../design/roles'
 import { TreePageIntro } from '../tree/TreeChrome'
+import { TreeFeedSkeleton } from '../tree/TreeTabSkeletons'
 import { useTreeWorkspace } from '../tree/treeWorkspaceContext'
 import { loadFeedTree, type FeedPostState, feedPostsFingerprint, getFeedMediaPublicUrl } from './feedQueries'
 import { FeedComposerGate } from './FeedComposerGate'
@@ -13,6 +13,10 @@ import { FeedPostCard } from './FeedPostCard'
 
 /** Cache trong phiên (ở lại khi đổi tab trong cùng dòng họ). */
 const feedSessionByTree = new Map<string, FeedPostState[]>()
+
+/** Tránh refetch ngay khi vừa tải xong (chuyển tab Trang nhà ↔ Dòng họ). */
+const FEED_MOUNT_SWR_MS = 18_000
+const feedLastFetchedAtMs = new Map<string, number>()
 
 export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean }) {
   const { tree, treeId, treeLoadErr } = useTreeWorkspace()
@@ -30,6 +34,7 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
     try {
       const next = await loadFeedTree(treeId)
       feedSessionByTree.set(treeId, next)
+      feedLastFetchedAtMs.set(treeId, Date.now())
       setPosts((prev) => {
         if (prev != null && feedPostsFingerprint(prev) === feedPostsFingerprint(next)) return prev
         return next
@@ -62,9 +67,17 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
   useEffect(() => {
     if (!treeId || !sb) return
     const hit = feedSessionByTree.get(treeId)
+    const last = feedLastFetchedAtMs.get(treeId) ?? 0
+    const recentlyFetched = Date.now() - last < FEED_MOUNT_SWR_MS
+    const skipNetwork = recentlyFetched && hit !== undefined
+
     queueMicrotask(() => {
-      setPosts(hit ?? null)
-      void refresh()
+      if (hit !== undefined) setPosts(hit)
+      else setPosts(null)
+
+      if (!skipNetwork) {
+        void refresh()
+      }
     })
   }, [treeId, sb, refresh])
 
@@ -161,9 +174,8 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
 
   if (tree === undefined) {
     return (
-      <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-abnb-primary" />
-        <p className={role.caption}>Đang tải…</p>
+      <div className={embedOnHome ? 'w-full max-w-none' : 'mx-auto max-w-xl'}>
+        <TreeFeedSkeleton />
       </div>
     )
   }
@@ -192,9 +204,7 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
       {loadErr ? <p className="mt-4 text-sm text-abnb-error">{loadErr}</p> : null}
 
       {posts === null ? (
-        <div className="mt-8 flex justify-center py-14">
-          <Loader2 className="h-7 w-7 animate-spin text-abnb-primary" />
-        </div>
+        <TreeFeedSkeleton />
       ) : posts.length === 0 ? (
         <p
           className={`${role.bodySm} mt-8 rounded-abnb-xl border border-dashed border-abnb-hairlineSoft/90 bg-abnb-canvas/50 px-5 py-8 text-center text-abnb-muted`}

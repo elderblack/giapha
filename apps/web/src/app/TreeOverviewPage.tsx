@@ -4,13 +4,15 @@ import { role } from '../design/roles'
 import { AppProductTour } from './AppProductTour'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { TreePageIntro } from './tree/TreeChrome'
+import { TreeOverviewSkeleton } from './tree/TreeTabSkeletons'
 
 export function TreeOverviewPage() {
   const { tree, treeId, members } = useTreeWorkspace()
   if (!tree) return null
+  if (members === null) return <TreeOverviewSkeleton />
 
   const base = `/app/trees/${treeId}`
-  const memberCount = members?.length ?? null
+  const memberCount = members.length
 
   const statTile = (label: string, value: string | number) => (
     <div className="rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-canvas/70 px-4 py-4 shadow-abnb-inner">
@@ -43,7 +45,7 @@ export function TreeOverviewPage() {
   )
 
   return (
-    <div className="animate-fade-up space-y-10">
+    <div className="space-y-10">
       <AppProductTour />
 
       <TreePageIntro kicker="Tổng quan" title="Giới thiệu dòng họ">
@@ -52,7 +54,7 @@ export function TreeOverviewPage() {
       </TreePageIntro>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        {statTile('Thành viên', memberCount == null ? '…' : memberCount)}
+        {statTile('Thành viên', memberCount)}
         {statTile('Quê / gốc', tree.origin_place?.trim() || '—')}
         {statTile('Chi / nhánh', tree.clan_name?.trim() || '—')}
       </div>

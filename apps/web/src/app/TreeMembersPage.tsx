@@ -22,7 +22,7 @@ import { memberInitial, treeAlertErr } from './tree/treeUi'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { feedUserProfilePath } from './feed/feedProfileHref'
 import { broadcastFamilyChatThreadsReload } from './chat/chatReadSync'
-import { LunarFromSolarButton } from './tree/LunarFromSolarButton'
+import { TreeMembersSkeleton } from './tree/TreeTabSkeletons'
 
 type AccountRoleRow = {
   user_id: string
@@ -255,7 +255,7 @@ export function TreeMembersPage() {
       return
     }
     void loadMemberRequests()
-    if (approve) void loadMembers()
+    if (approve) void loadMembers({ force: true })
   }
 
   async function submitEdit(e: React.FormEvent) {
@@ -324,7 +324,7 @@ export function TreeMembersPage() {
       return
     }
     cancelEdit()
-    void loadMembers()
+    void loadMembers({ force: true })
   }
 
   async function deleteMember(id: string, name: string) {
@@ -339,7 +339,7 @@ export function TreeMembersPage() {
       setDeleteErr(error.message)
       return
     }
-    void loadMembers()
+    void loadMembers({ force: true })
   }
 
   if (!tree) return null
@@ -349,7 +349,7 @@ export function TreeMembersPage() {
   const pendingRequests = (memberRequests ?? []).filter((r) => r.status === 'pending')
 
   return (
-    <div className="animate-fade-up space-y-10">
+    <div className="space-y-10">
       <TreePageIntro kicker="Thành viên" title="Danh sách & quyền">
         Liên kết tài khoản một-một với người trên cây. Chủ và biên tập chỉnh trực tiếp; thành viên đã liên kết có thể
         gửi đề xuất thêm vợ/chồng (cùng thế hệ) hoặc con cháu trong nhánh — cần được duyệt.
@@ -487,7 +487,7 @@ export function TreeMembersPage() {
         myLinkedMemberId={myLinkedMemberId}
         supportsMemberPhoneColumn={supportsMemberPhoneColumn}
         onSaved={() => {
-          void loadMembers()
+          void loadMembers({ force: true })
           void loadMemberRequests()
         }}
       />
@@ -504,9 +504,7 @@ export function TreeMembersPage() {
       ) : null}
 
       {members === null ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-abnb-primary" />
-        </div>
+        <TreeMembersSkeleton />
       ) : members.length === 0 ? (
         <div className={`${role.cardQuiet} rounded-abnb-xl border border-dashed border-abnb-hairlineSoft px-8 py-12 text-center`}>
           <p className={`${role.bodyMd} text-abnb-muted`}>
@@ -679,7 +677,7 @@ export function TreeMembersPage() {
                           memberPhone={m.phone}
                           supportsMemberPhoneColumn={supportsMemberPhoneColumn}
                           disabled={linkBusyId !== null}
-                          onDone={() => void loadMembers()}
+                          onDone={() => void loadMembers({ force: true })}
                         />
                       ) : null}
                     </div>
