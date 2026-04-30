@@ -15,6 +15,7 @@ import { TreeOverviewPage } from './app/TreeOverviewPage'
 import { TreeChartPage } from './app/TreeChartPage'
 import { TreeMembersPage } from './app/TreeMembersPage'
 import { TreesListPage } from './app/TreesListPage'
+import { ChatDockProvider } from './app/chat/ChatDockContext'
 import { ChatShell } from './app/chat/ChatShell'
 import { ChatThreadPage } from './app/chat/ChatThreadPage'
 import { ConnectionsPage } from './app/ConnectionsPage'
@@ -45,7 +46,9 @@ export default function App() {
         path="/app"
         element={
           <RequireAuth>
-            <AppShell />
+            <ChatDockProvider>
+              <AppShell />
+            </ChatDockProvider>
           </RequireAuth>
         }
       >

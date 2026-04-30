@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Home, LogOut, Settings, TreePine, Users, UserRound } from 'lucide-react'
 import { ChatBadge } from './chat/ChatBadge'
+import { FloatingMiniChat } from './chat/FloatingMiniChat'
 import { NotificationBell } from './NotificationBell'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
@@ -135,6 +136,7 @@ export function AppShell() {
           </NavLink>
         </div>
       </nav>
+      <FloatingMiniChat />
     </div>
   )
 }

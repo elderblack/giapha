@@ -16,7 +16,15 @@ function formatTime(iso: string): string {
   }
 }
 
-export function ThreadList(props: { threads: ChatThreadPreview[]; loading: boolean; activeId?: string }) {
+export function ThreadList(props: {
+  threads: ChatThreadPreview[]
+  loading: boolean
+  activeId?: string
+  /** 'link' = điều hướng /app/chat/:id (mặc định). 'pick' = gọi onPick, dùng trong popover dock. */
+  mode?: 'link' | 'pick'
+  onPick?: (conversationId: string) => void
+}) {
+  const mode = props.mode ?? 'link'
   if (props.loading) {
     return (
       <div className="flex justify-center py-12">
@@ -40,14 +48,11 @@ export function ThreadList(props: { threads: ChatThreadPreview[]; loading: boole
     <ul className="divide-y divide-abnb-hairlineSoft/60">
       {props.threads.map((t) => {
         const isActive = t.conversation.id === props.activeId
-        return (
-          <li key={t.conversation.id}>
-            <Link
-              to={`/app/chat/${t.conversation.id}`}
-              className={`flex items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-abnb-surfaceSoft ${
-                isActive ? 'bg-abnb-primary/[0.06]' : ''
-              }`}
-            >
+        const rowCls = `flex w-full items-center gap-3 px-4 py-3 text-left no-underline transition-colors hover:bg-abnb-surfaceSoft ${
+          isActive ? 'bg-abnb-primary/[0.06]' : ''
+        }`
+        const inner = (
+          <>
               {t.otherUser.avatar_url ? (
                 <img
                   src={t.otherUser.avatar_url}
@@ -85,7 +90,23 @@ export function ThreadList(props: { threads: ChatThreadPreview[]; loading: boole
                   )}
                 </div>
               </div>
-            </Link>
+          </>
+        )
+        return (
+          <li key={t.conversation.id}>
+            {mode === 'pick' ? (
+              <button
+                type="button"
+                className={rowCls}
+                onClick={() => props.onPick?.(t.conversation.id)}
+              >
+                {inner}
+              </button>
+            ) : (
+              <Link to={`/app/chat/${t.conversation.id}`} className={rowCls}>
+                {inner}
+              </Link>
+            )}
           </li>
         )
       })}

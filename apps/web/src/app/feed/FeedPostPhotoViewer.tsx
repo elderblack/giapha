@@ -3,19 +3,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react'
 import type { FeedAttachmentItem } from './FeedAttachmentGrid'
+import { useMaxLg } from '../../hooks/useMaxLg'
 
 type Props = {
   open: boolean
   onClose: () => void
-  /** Chỉ số trong `items` của media đang xem — đổi khi mở từ lưới ảnh. */
   startIndex?: number
   items: FeedAttachmentItem[]
-  /** Cột phải: tiêu đề bài, cảm xúc, bình luận (Facebook-style). */
   sidebar: ReactNode
+  /** Mobile: thanh Like / Bình luận nổi trên ảnh (bấm comment mở sheet). */
+  mobileFloatingBar?: ReactNode
+  /** Mobile: điều khiển sheet bình luận từ ngoài (đóng viewer cần reset). */
+  mobileCommentsOpen?: boolean
+  onMobileCommentsOpenChange?: (open: boolean) => void
 }
 
 /**
- * Overlay toàn khung nhìn kiểu Facebook: trái nền đen + ảnh/video căn giữa (contain), phải panel nội dung.
+ * Overlay: desktop = ảnh trái + panel phải. Mobile = ảnh toàn màn hình + bar nổi; bình luận trong sheet.
  */
 export function FeedPostPhotoViewer({
   open,
@@ -23,12 +27,20 @@ export function FeedPostPhotoViewer({
   startIndex = 0,
   items,
   sidebar,
+  mobileFloatingBar,
+  mobileCommentsOpen: commentsOpenControlled,
+  onMobileCommentsOpenChange,
 }: Props) {
+  const maxLg = useMaxLg()
   const prevOverflow = useRef<string | null>(null)
   const [index, setIndex] = useState(() => clampIndex(startIndex, items.length))
+  const [uncontrolledSheet, setUncontrolledSheet] = useState(false)
+  const sheetOpen = commentsOpenControlled ?? uncontrolledSheet
+  const setSheetOpen = onMobileCommentsOpenChange ?? setUncontrolledSheet
 
   useEffect(() => {
     if (!open || !items.length) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ chỉ số khi mở viewer / đổi startIndex
     setIndex(clampIndex(startIndex, items.length))
   }, [open, startIndex, items.length])
 
@@ -36,9 +48,14 @@ export function FeedPostPhotoViewer({
     if (!open) return
     prevOverflow.current = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (maxLg && sheetOpen) {
+          setSheetOpen(false)
+          return
+        }
+        onClose()
+      }
       if (e.key === 'ArrowLeft' && items.length > 1) {
         setIndex((i) => (i + items.length - 1) % items.length)
       }
@@ -51,7 +68,13 @@ export function FeedPostPhotoViewer({
       document.body.style.overflow = prevOverflow.current ?? ''
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, onClose, items.length])
+  }, [open, onClose, items.length, maxLg, sheetOpen, setSheetOpen])
+
+  useEffect(() => {
+    if (!open && commentsOpenControlled == null) {
+      queueMicrotask(() => setUncontrolledSheet(false))
+    }
+  }, [open, commentsOpenControlled])
 
   const prev = useCallback(() => {
     setIndex((i) => (i + items.length - 1) % items.length)
@@ -73,10 +96,10 @@ export function FeedPostPhotoViewer({
       aria-modal="true"
     >
       <section
-        className="relative flex min-h-[45vh] flex-1 min-w-0 flex-col bg-[#000000] lg:min-h-0"
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#000000] lg:min-h-0"
         aria-roledescription="carousel"
       >
-        <div className="pointer-events-none absolute left-3 top-3 z-30 flex gap-2 sm:left-4 sm:top-4">
+        <div className="pointer-events-none absolute left-3 top-3 z-30 flex gap-2 sm:left-4 sm:top-4 lg:left-4 lg:top-4">
           <button
             type="button"
             onClick={(e) => {
@@ -117,20 +140,47 @@ export function FeedPostPhotoViewer({
           </>
         ) : null}
 
-        <div className="flex min-h-0 w-full flex-1 items-center justify-center bg-[#000000] px-2 pb-safe pt-14 sm:px-6 lg:pb-10 lg:pt-12">
-          <ViewerStage item={current} />
+        <div
+          className={`flex min-h-0 w-full flex-1 items-center justify-center bg-[#000000] px-2 pt-14 [-webkit-tap-highlight-color:transparent] sm:px-6 lg:pb-10 lg:pt-12 ${
+            maxLg ? 'pb-[max(5.5rem,env(safe-area-inset-bottom,0px))]' : 'pb-3'
+          }`}
+        >
+          <ViewerStage key={current.key} item={current} fullBleed={maxLg} />
         </div>
+
+        {maxLg && mobileFloatingBar ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 border-t border-white/[0.12] bg-gradient-to-t from-black/85 via-black/50 to-transparent pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-10">
+            <div className="pointer-events-auto px-2">{mobileFloatingBar}</div>
+          </div>
+        ) : null}
 
         <p className="sr-only">
           Đính kèm {safeItems.length} mục, đang hiển thị {index + 1} của {safeItems.length}
         </p>
       </section>
 
-      <aside
-        className="flex max-h-[min(52vh,_480px)] w-full shrink-0 flex-col overflow-hidden border-l border-[#393a3f] bg-[#242526] text-[#e4e6eb] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:max-h-none lg:h-full lg:w-[min(420px,_40vw)]"
-      >
-        <div className="min-h-0 flex-1 overflow-y-auto">{sidebar}</div>
-      </aside>
+      {!maxLg ? (
+        <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#393a3f] bg-[#242526] text-[#e4e6eb] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:h-full lg:max-h-none lg:min-h-0 lg:w-[min(420px,_40vw)] lg:flex-none lg:shrink-0 lg:border-l lg:border-t-0">
+          {sidebar}
+        </aside>
+      ) : null}
+
+      {maxLg && sheetOpen ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[120] bg-black/55 backdrop-blur-[2px]"
+            aria-label="Đóng bình luận"
+            onClick={() => setSheetOpen(false)}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-[125] flex max-h-[min(88dvh,820px)] flex-col rounded-t-[1.25rem] border-t border-[#393a3f] bg-[#242526] shadow-[0_-12px_48px_rgba(0,0,0,0.45)]">
+            <div className="flex shrink-0 justify-center border-b border-white/[0.08] py-2 pt-2.5">
+              <div className="h-1 w-11 rounded-full bg-white/28" aria-hidden />
+            </div>
+            <div className="min-h-0 min-h-[200px] flex-1 overflow-hidden">{sidebar}</div>
+          </div>
+        </>
+      ) : null}
     </div>,
     document.body,
   )
@@ -142,15 +192,10 @@ function clampIndex(i: number, len: number) {
   return Math.max(0, Math.min(i, len - 1))
 }
 
-function ViewerStage({ item }: { item: FeedAttachmentItem }) {
+function ViewerStage({ item, fullBleed }: { item: FeedAttachmentItem; fullBleed: boolean }) {
   const [imgBroken, setImgBroken] = useState(false)
   const [videoBroken, setVideoBroken] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
-
-  useEffect(() => {
-    setImgBroken(false)
-    setVideoBroken(false)
-  }, [item.key, item.url])
 
   useEffect(() => {
     if (item.kind !== 'video') return
@@ -168,8 +213,9 @@ function ViewerStage({ item }: { item: FeedAttachmentItem }) {
     }
   }, [item.kind, item.key, item.url])
 
-  const fit =
-    'max-h-[calc(100dvh-8rem)] max-w-[100vw] object-contain sm:max-h-[min(92dvh,_900px)] lg:max-h-[min(94dvh,_900px)]'
+  const fit = fullBleed
+    ? 'max-h-[min(calc(100dvh-5.25rem),920px)] max-w-[100vw] object-contain'
+    : 'max-h-[min(38dvh,360px)] max-w-[100vw] object-contain sm:max-h-[min(46dvh,480px)] lg:max-h-[min(92dvh,_900px)] lg:max-w-[100vw]'
 
   if (!item.url) return <BrokenBadge />
 

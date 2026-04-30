@@ -6,10 +6,13 @@ import { getSupabase } from '../../lib/supabase'
 import { role } from '../../design/roles'
 import { TreePageIntro } from '../tree/TreeChrome'
 import { useTreeWorkspace } from '../tree/treeWorkspaceContext'
-import { loadFeedTree, type FeedPostState } from './feedQueries'
+import { loadFeedTree, type FeedPostState, feedPostsFingerprint, getFeedMediaPublicUrl } from './feedQueries'
 import { FeedComposerGate } from './FeedComposerGate'
 import { publishFamilyFeedPost } from './publishFeedPost'
 import { FeedPostCard } from './FeedPostCard'
+
+/** Cache trong phiên (ở lại khi đổi tab trong cùng dòng họ). */
+const feedSessionByTree = new Map<string, FeedPostState[]>()
 
 export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean }) {
   const { tree, treeId, treeLoadErr } = useTreeWorkspace()
@@ -26,7 +29,11 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
     setLoadErr(null)
     try {
       const next = await loadFeedTree(treeId)
-      setPosts(next)
+      feedSessionByTree.set(treeId, next)
+      setPosts((prev) => {
+        if (prev != null && feedPostsFingerprint(prev) === feedPostsFingerprint(next)) return prev
+        return next
+      })
     } catch {
       setLoadErr('Không tải được bảng tin.')
       setPosts([])
@@ -51,9 +58,31 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
   useEffect(() => () => {
     if (refreshTimerRef.current != null) clearTimeout(refreshTimerRef.current)
   }, [])
+
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    if (!treeId || !sb) return
+    const hit = feedSessionByTree.get(treeId)
+    queueMicrotask(() => {
+      setPosts(hit ?? null)
+      void refresh()
+    })
+  }, [treeId, sb, refresh])
+
+  useEffect(() => {
+    if (!posts?.length) return
+    const urls: string[] = []
+    for (const p of posts.slice(0, 8)) {
+      const first = p.media[0]
+      if (!first || first.media_kind !== 'image') continue
+      const u = getFeedMediaPublicUrl(first.storage_path)
+      if (u) urls.push(u)
+    }
+    for (const u of urls) {
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = u
+    }
+  }, [posts])
 
   useEffect(() => {
     if (!sb || !treeId) return
@@ -81,12 +110,18 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'family_feed_comment_reactions' },
+        () => {
+          void scheduleRefresh()
+        },
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'family_feed_comments' },
         () => {
           void scheduleRefresh()
         },
       )
-      .subscribe()
 
     return () => {
       sb.removeChannel(ch)

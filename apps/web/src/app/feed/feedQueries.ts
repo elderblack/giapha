@@ -22,6 +22,12 @@ export type FeedReactionRow = {
   kind: FeedReactionKind
 }
 
+export type FeedCommentReactionRow = {
+  comment_id: string
+  user_id: string
+  kind: FeedReactionKind
+}
+
 export type FeedCommentRow = {
   id: string
   post_id: string
@@ -45,7 +51,10 @@ export type FeedPostState = {
   comments: Array<
     FeedCommentRow & {
       profiles?: FeedProfileLite
-      replies: Array<FeedCommentRow & { profiles?: FeedProfileLite }>
+      reactions: FeedCommentReactionRow[]
+      replies: Array<
+        FeedCommentRow & { profiles?: FeedProfileLite; reactions: FeedCommentReactionRow[] }
+      >
     }
   >
 }
@@ -81,6 +90,12 @@ async function hydrateFeedPosts(postRows: BasePostRow[]): Promise<FeedPostState[
   const { data: mediaData } = await sb.from('family_feed_post_media').select('*').in('post_id', postIds)
   const { data: reData } = await sb.from('family_feed_post_reactions').select('*').in('post_id', postIds)
   const { data: cData } = await sb.from('family_feed_comments').select('*').in('post_id', postIds).order('created_at')
+  const flatForR = (cData ?? []) as FeedCommentRow[]
+  const commentIds = flatForR.map((c) => c.id)
+  const { data: crData } =
+    commentIds.length > 0
+      ? await sb.from('family_feed_comment_reactions').select('*').in('comment_id', commentIds)
+      : { data: [] as FeedCommentReactionRow[] }
 
   const mediaByPost = new Map<string, FeedMediaRow[]>()
   for (const row of (mediaData ?? []) as FeedMediaRow[]) {
@@ -117,6 +132,21 @@ async function hydrateFeedPosts(postRows: BasePostRow[]): Promise<FeedPostState[
     commentsByPost.set(c.post_id, arr)
   }
 
+  const reactByComment = new Map<string, FeedCommentReactionRow[]>()
+  for (const raw of crData ?? []) {
+    const row = raw as { comment_id: string; user_id: string; kind: string }
+    const k = parseReactionKind(row.kind)
+    if (!k) continue
+    const fr: FeedCommentReactionRow = { comment_id: row.comment_id, user_id: row.user_id, kind: k }
+    const arr = reactByComment.get(row.comment_id) ?? []
+    arr.push(fr)
+    reactByComment.set(row.comment_id, arr)
+  }
+
+  function reactionsFor(commentId: string): FeedCommentReactionRow[] {
+    return reactByComment.get(commentId) ?? []
+  }
+
   function buildCommentsFor(postId: string) {
     const list = commentsByPost.get(postId) ?? []
     const top = list.filter((c) => c.parent_comment_id === null).sort(byCreated)
@@ -127,10 +157,12 @@ async function hydrateFeedPosts(postRows: BasePostRow[]): Promise<FeedPostState[
         .map((r) => ({
           ...r,
           profiles: profiles.get(r.author_id),
+          reactions: reactionsFor(r.id),
         }))
       return {
         ...c,
         profiles: profiles.get(c.author_id),
+        reactions: reactionsFor(c.id),
         replies,
       }
     })
@@ -266,6 +298,45 @@ export async function loadUserTreesForComposer(userId: string): Promise<{ id: st
     })
   }
   return list
+}
+
+/**
+ * Chuỗi đại diện nội dung feed (đủ để phát hiện thay đổi bài, cảm xúc, bình luận).
+ * Dùng để bỏ qua setState khi đã có dữ liệu giống hệt sau refresh.
+ */
+export function feedPostsFingerprint(posts: FeedPostState[]): string {
+  return posts
+    .map((p) => {
+      const rx = [...p.reactions]
+        .map((r) => `${r.user_id}:${r.kind}`)
+        .sort()
+        .join(',')
+      const cx = p.comments
+        .map((c) => {
+          const rrx = [...(c.reactions ?? [])]
+            .map((x) => `${x.user_id}:${x.kind}`)
+            .sort()
+            .join(',')
+          const rids = c.replies
+            .map((r) => {
+              const srr = [...(r.reactions ?? [])]
+                .map((x) => `${x.user_id}:${x.kind}`)
+                .sort()
+                .join(',')
+              return `${r.id}:${r.body.length}:${srr}`
+            })
+            .sort()
+            .join(',')
+          return `${c.id}:${c.body.length}:${rrx}:${rids}`
+        })
+        .join(';')
+      const mids = p.media
+        .map((m) => m.id)
+        .sort()
+        .join(',')
+      return `${p.id}\t${p.body ?? ''}\t${mids}\t${rx}\t${cx}`
+    })
+    .join('\n')
 }
 
 /** URL công khai cho file trong bucket tin dòng họ */

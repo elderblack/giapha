@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trash2 } from 'lucide-react'
 import { getSupabase } from '../../lib/supabase'
@@ -10,8 +10,12 @@ import { FeedAttachmentGrid, type FeedAttachmentItem } from './FeedAttachmentGri
 import { FeedPostPhotoViewer } from './FeedPostPhotoViewer'
 import { FeedPostPhotoViewerSidebar } from './FeedPostPhotoViewerSidebar'
 import { formatFeedDt } from './feedDate'
-import { FeedCommentLine } from './FeedCommentLine'
+import { FeedCommentBlock } from './FeedCommentBlock'
 import { feedUserProfilePath } from './feedProfileHref'
+import { useMinLg } from '../../hooks/useMinLg'
+
+const FEED_DESKTOP_COMMENT_PREVIEW = 2
+const FEED_DESKTOP_REPLY_PREVIEW = 1
 
 export const FeedPostCard = memo(function FeedPostCardInner({
   post,
@@ -35,7 +39,14 @@ export const FeedPostCard = memo(function FeedPostCardInner({
   const [draftReply, setDraftReply] = useState('')
   const [localBusy, setLocalBusy] = useState(false)
   const [photoViewerIdx, setPhotoViewerIdx] = useState<number | null>(null)
+  const [bodyExpanded, setBodyExpanded] = useState(false)
+  const [theaterMobileCommentsOpen, setTheaterMobileCommentsOpen] = useState(false)
+  const [previewRepliesExpanded, setPreviewRepliesExpanded] = useState<Record<string, boolean>>({})
 
+  const isLg = useMinLg()
+  const bodyLong =
+    Boolean(post.body) &&
+    ((post.body?.length ?? 0) > 220 || (post.body?.split('\n').length ?? 0) > 4)
   const mine = Boolean(currentUserId && post.author_id === currentUserId)
   const mineReact = post.reactions.find((r) => r.user_id === currentUserId)
 
@@ -126,6 +137,43 @@ export const FeedPostCard = memo(function FeedPostCardInner({
     await onReload()
   }
 
+  const reactOnComment = useCallback(
+    async (commentId: string, kind: FeedReactionKind) => {
+      if (!sb || !currentUserId) return
+      let mineKind: FeedReactionKind | undefined
+      for (const c of post.comments) {
+        if (c.id === commentId) {
+          mineKind = c.reactions.find((r) => r.user_id === currentUserId)?.kind
+          break
+        }
+        const hit = c.replies.find((r) => r.id === commentId)
+        if (hit) {
+          mineKind = hit.reactions.find((r) => r.user_id === currentUserId)?.kind
+          break
+        }
+      }
+      setLocalBusy(true)
+      try {
+        if (mineKind === kind) {
+          await sb.from('family_feed_comment_reactions').delete().eq('comment_id', commentId).eq('user_id', currentUserId)
+        } else {
+          await sb.from('family_feed_comment_reactions').upsert(
+            { comment_id: commentId, user_id: currentUserId, kind },
+            { onConflict: 'comment_id,user_id' },
+          )
+        }
+        await onReload()
+      } finally {
+        setLocalBusy(false)
+      }
+    },
+    [sb, currentUserId, post.comments, onReload],
+  )
+
+  useEffect(() => {
+    setPreviewRepliesExpanded({})
+  }, [post.id])
+
   return (
     <>
     <article className={`${role.cardElevated} !rounded-abnb-xl overflow-hidden px-5 py-5 transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-abnb-lg`}>
@@ -171,7 +219,26 @@ export const FeedPostCard = memo(function FeedPostCardInner({
               </button>
             ) : null}
           </div>
-          {post.body ? <p className={`${role.bodySm} mt-2 whitespace-pre-wrap text-abnb-body`}>{post.body}</p> : null}
+          {post.body ? (
+            <div className="mt-2">
+              <p
+                className={`${role.bodySm} whitespace-pre-wrap text-abnb-body ${
+                  !bodyExpanded && bodyLong ? 'line-clamp-4' : ''
+                }`}
+              >
+                {post.body}
+              </p>
+              {bodyLong ? (
+                <button
+                  type="button"
+                  className="mt-1.5 text-left text-[13px] font-semibold text-abnb-primary hover:underline"
+                  onClick={() => setBodyExpanded((v) => !v)}
+                >
+                  {bodyExpanded ? 'Thu gọn' : 'Xem thêm'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -193,39 +260,113 @@ export const FeedPostCard = memo(function FeedPostCardInner({
         onToggleComments={toggleCommentsOpen}
       />
 
+      {isLg && !commentOpen && post.comments.length > 0 ? (
+        <section className="mt-5 space-y-4 border-t border-abnb-hairlineSoft/60 pt-4">
+          {post.comments.length > FEED_DESKTOP_COMMENT_PREVIEW ? (
+            <button
+              type="button"
+              className="w-full rounded-abnb-lg py-1.5 text-left text-[13px] font-semibold text-abnb-muted hover:bg-abnb-surfaceSoft/80 hover:text-abnb-primary"
+              onClick={() => setCommentOpen(true)}
+            >
+              Xem thêm bình luận
+            </button>
+          ) : null}
+          {post.comments.slice(0, FEED_DESKTOP_COMMENT_PREVIEW).map((c) => {
+            const repliesAllOut = previewRepliesExpanded[c.id]
+            const visReplies = repliesAllOut ? c.replies : c.replies.slice(0, FEED_DESKTOP_REPLY_PREVIEW)
+            const hasMoreReplies = !repliesAllOut && c.replies.length > FEED_DESKTOP_REPLY_PREVIEW
+            return (
+              <div key={`preview-${c.id}`} className="rounded-abnb-lg px-0 py-1">
+                <FeedCommentBlock
+                  comment={c}
+                  currentUserId={currentUserId}
+                  onDelete={(id) => void deleteComment(id)}
+                  onReply={() => {
+                    setCommentOpen(true)
+                    setReplyToId(c.id)
+                    setDraftReply('')
+                  }}
+                  onReact={(k) => void reactOnComment(c.id, k)}
+                  disabled={localBusy}
+                  variant="feed"
+                />
+                <div className="ml-10 border-l border-abnb-hairlineSoft/90 pl-3">
+                  {visReplies.map((r) => (
+                    <FeedCommentBlock
+                      key={r.id}
+                      comment={r}
+                      currentUserId={currentUserId}
+                      onDelete={(id) => void deleteComment(id)}
+                      onReply={() => {
+                        setCommentOpen(true)
+                        setReplyToId(c.id)
+                        setDraftReply('')
+                      }}
+                      onReact={(k) => void reactOnComment(r.id, k)}
+                      disabled={localBusy}
+                      variant="feed"
+                      isReply
+                      mentionName={c.profiles?.full_name ?? null}
+                      mentionAuthorId={c.author_id}
+                    />
+                  ))}
+                  {hasMoreReplies ? (
+                    <button
+                      type="button"
+                      className="mt-1 py-1 text-left text-[13px] font-semibold text-abnb-muted hover:text-abnb-primary"
+                      onClick={() =>
+                        setPreviewRepliesExpanded((prev) => ({
+                          ...prev,
+                          [c.id]: true,
+                        }))
+                      }
+                    >
+                      Xem phản hồi khác
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            )
+          })}
+        </section>
+      ) : null}
+
       {commentOpen ? (
         <section className="mt-5 space-y-5 border-t border-abnb-hairlineSoft/60 pt-4">
           {post.comments.map((c) => (
-            <div key={c.id} className="rounded-abnb-lg bg-abnb-canvas/80 px-3 py-2">
-              <FeedCommentLine
+            <div key={c.id} className="rounded-abnb-lg px-0 py-1">
+              <FeedCommentBlock
                 comment={c}
                 currentUserId={currentUserId}
                 onDelete={(id) => void deleteComment(id)}
+                onReply={() => {
+                  setReplyToId(c.id)
+                  setDraftReply('')
+                }}
+                onReact={(k) => void reactOnComment(c.id, k)}
+                disabled={localBusy}
                 variant="feed"
               />
 
-              <div className="ml-2 mt-2 space-y-2 border-l border-abnb-hairlineSoft/90 pl-3">
+              <div className="ml-10 space-y-0 border-l border-abnb-hairlineSoft/90 pl-3">
                 {c.replies.map((r) => (
-                  <FeedCommentLine
+                  <FeedCommentBlock
                     key={r.id}
-                    comment={{ ...r, replies: [], profiles: r.profiles }}
+                    comment={r}
                     currentUserId={currentUserId}
                     onDelete={(id) => void deleteComment(id)}
-                    variant="feed"
-                  />
-                ))}
-                {currentUserId ? (
-                  <button
-                    type="button"
-                    className={`${role.link} text-[13px] font-semibold`}
-                    onClick={() => {
+                    onReply={() => {
                       setReplyToId(c.id)
                       setDraftReply('')
                     }}
-                  >
-                    Trả lời
-                  </button>
-                ) : null}
+                    onReact={(k) => void reactOnComment(r.id, k)}
+                    disabled={localBusy}
+                    variant="feed"
+                    isReply
+                    mentionName={c.profiles?.full_name ?? null}
+                    mentionAuthorId={c.author_id}
+                  />
+                ))}
               </div>
             </div>
           ))}
@@ -276,9 +417,28 @@ export const FeedPostCard = memo(function FeedPostCardInner({
     {photoViewerIdx !== null && attachmentItems.length > 0 ? (
       <FeedPostPhotoViewer
         open
-        onClose={() => setPhotoViewerIdx(null)}
+        onClose={() => {
+          setPhotoViewerIdx(null)
+          setTheaterMobileCommentsOpen(false)
+        }}
         startIndex={photoViewerIdx}
         items={attachmentItems}
+        mobileCommentsOpen={theaterMobileCommentsOpen}
+        onMobileCommentsOpenChange={setTheaterMobileCommentsOpen}
+        mobileFloatingBar={
+          <FeedReactionBar
+            reactions={post.reactions}
+            mineReact={mineReact}
+            currentUserId={currentUserId}
+            disabled={localBusy}
+            onReact={(k) => void react(k)}
+            variant="theater"
+            density="compact"
+            commentCount={commentCount(post)}
+            commentsActive={theaterMobileCommentsOpen}
+            onToggleComments={() => setTheaterMobileCommentsOpen((v) => !v)}
+          />
+        }
         sidebar={
           <FeedPostPhotoViewerSidebar
             post={post}
@@ -296,6 +456,7 @@ export const FeedPostCard = memo(function FeedPostCardInner({
             onSubmitTop={() => void submitTopComment(draftTop)}
             onSubmitReply={(top) => void submitReplyNested(top, draftReply)}
             onDeleteComment={(id) => void deleteComment(id)}
+            onReactComment={(cid, k) => void reactOnComment(cid, k)}
           />
         }
       />

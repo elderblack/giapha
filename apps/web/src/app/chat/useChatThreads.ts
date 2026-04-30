@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSupabase } from '../../lib/supabase'
 import { useAuth } from '../../auth/useAuth'
 import type { ChatConversation, ChatMessage, ChatParticipant, ChatThreadPreview } from './types'
@@ -9,6 +9,8 @@ export function useChatThreads() {
   const uid = user?.id
   const [threads, setThreads] = useState<ChatThreadPreview[]>([])
   const [loading, setLoading] = useState(true)
+  /** Mỗi hook instance cần tên kênh riêng: Supabase tái dùng cùng topic và không cho `.on()` sau `subscribe()`. */
+  const realtimeScope = useRef(`t-${Math.random().toString(36).slice(2, 11)}`)
 
   const load = useCallback(async () => {
     if (!sb || !uid) {
@@ -119,8 +121,9 @@ export function useChatThreads() {
 
   useEffect(() => {
     if (!sb || !uid) return
+    const topic = `family-chat-threads:${uid}:${realtimeScope.current}`
     const ch = sb
-      .channel('family-chat-global')
+      .channel(topic)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'family_chat_messages' },
