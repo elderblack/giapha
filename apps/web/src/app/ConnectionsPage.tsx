@@ -251,11 +251,20 @@ export function ConnectionsPage() {
                         </p>
                       </div>
                       <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+                        <button
+                          type="button"
+                          disabled={busyId === `dm-${p.id}`}
+                          className={`${role.btnPrimary} !h-10 w-full !min-h-0 !px-4 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
+                          onClick={() => void openDm(p.id)}
+                        >
+                          <MessageCircle className="mr-1.5 inline h-3.5 w-3.5" strokeWidth={2} />
+                          Nhắn tin
+                        </button>
                         {!friendSet.has(p.id) ? (
                           <button
                             type="button"
                             disabled={busyId === p.id}
-                            className={`${role.btnPrimary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
+                            className={`${role.btnSecondary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                             onClick={() => void sendFriend(p.id)}
                           >
                             Kết bạn

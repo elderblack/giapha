@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, KeyRound, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
 import { getSupabase } from '../lib/supabase'
+import { type ProfileSettingsRow } from './profile/profileSettingsUtils'
 
 const schema = z.object({
   full_name: z.string().min(1, 'Bắt buộc').max(120),
@@ -20,34 +21,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-function profileAllowsPasswordChange(identities: { provider: string }[] | undefined): boolean {
-  if (!identities?.length) return false
-  return identities.some((i) => i.provider === 'email' || i.provider === 'phone')
-}
-
-type ProfileRow = {
-  id: string
-  full_name: string
-  username: string | null
-  avatar_url: string | null
-  cover_url: string | null
-  bio: string | null
-  hometown: string | null
-  current_city: string | null
-  occupation: string | null
-  phone: string | null
-}
-
-export function ProfileSettingsPage() {
+export function ProfileSettingsProfilePage() {
   const { user } = useAuth()
   const sb = getSupabase()
   const [loading, setLoading] = useState(true)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
-  const [pwdCurrent, setPwdCurrent] = useState('')
-  const [pwdNew, setPwdNew] = useState('')
-  const [pwdConfirm, setPwdConfirm] = useState('')
-  const [pwdBusy, setPwdBusy] = useState(false)
-  const [pwdMsg, setPwdMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const {
     register,
@@ -82,7 +60,7 @@ export function ProfileSettingsPage() {
         setLoading(false)
         return
       }
-      const p = data as ProfileRow
+      const p = data as ProfileSettingsRow
       reset({
         full_name: p.full_name,
         username: p.username ?? '',
@@ -122,72 +100,6 @@ export function ProfileSettingsPage() {
     setSaveMsg('Đã lưu thông tin.')
   })
 
-  async function submitPasswordChange(e: React.FormEvent) {
-    e.preventDefault()
-    if (!sb || !user) return
-    setPwdMsg(null)
-    if (!profileAllowsPasswordChange(user.identities)) {
-      setPwdMsg({ kind: 'err', text: 'Tài khoản đăng nhập Google không đổi mật khẩu tại đây.' })
-      return
-    }
-    if (!pwdCurrent) {
-      setPwdMsg({ kind: 'err', text: 'Nhập mật khẩu hiện tại.' })
-      return
-    }
-    if (pwdNew.length < 6) {
-      setPwdMsg({ kind: 'err', text: 'Mật khẩu mới cần ít nhất 6 ký tự.' })
-      return
-    }
-    if (pwdNew !== pwdConfirm) {
-      setPwdMsg({ kind: 'err', text: 'Mật khẩu mới và xác nhận không khớp.' })
-      return
-    }
-
-    setPwdBusy(true)
-    let verifyErr: { message: string } | null = null
-    if (user.email) {
-      const { error } = await sb.auth.signInWithPassword({
-        email: user.email,
-        password: pwdCurrent,
-      })
-      verifyErr = error
-    } else if (user.phone) {
-      const { error } = await sb.auth.signInWithPassword({
-        phone: user.phone,
-        password: pwdCurrent,
-      })
-      verifyErr = error
-    } else {
-      setPwdBusy(false)
-      setPwdMsg({ kind: 'err', text: 'Không có email hoặc số điện thoại trên tài khoản để xác nhận.' })
-      return
-    }
-
-    if (verifyErr) {
-      setPwdBusy(false)
-      setPwdMsg({
-        kind: 'err',
-        text:
-          verifyErr.message.toLowerCase().includes('invalid') ||
-          verifyErr.message.toLowerCase().includes('credential')
-            ? 'Mật khẩu hiện tại không đúng.'
-            : verifyErr.message,
-      })
-      return
-    }
-
-    const { error: updateErr } = await sb.auth.updateUser({ password: pwdNew })
-    setPwdBusy(false)
-    if (updateErr) {
-      setPwdMsg({ kind: 'err', text: updateErr.message })
-      return
-    }
-    setPwdCurrent('')
-    setPwdNew('')
-    setPwdConfirm('')
-    setPwdMsg({ kind: 'ok', text: 'Đã đổi mật khẩu. Lần sau đăng nhập bằng mật khẩu mới.' })
-  }
-
   if (!sb) {
     return <p className={`${role.bodySm} text-abnb-error`}>Không kết nối được.</p>
   }
@@ -215,15 +127,12 @@ export function ProfileSettingsPage() {
             <ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
             Về hồ sơ
           </Link>
-          <h1 className={`${role.headingModule} mt-4 text-[1.35rem]`}>Cài đặt tài khoản</h1>
-          <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
-            Chỉnh thông tin công khai trên trang của bạn và bảo mật đăng nhập.
-          </p>
+          <h1 className={`${role.headingModule} mt-4 text-[1.35rem]`}>Thông tin hồ sơ</h1>
+          <p className={`${role.bodySm} mt-2 text-abnb-muted`}>Chỉnh thông tin công khai trên trang của bạn.</p>
         </div>
 
         <div className={`${role.cardQuiet} rounded-abnb-xl border border-abnb-hairlineSoft/90 p-6 shadow-abnb sm:p-8`}>
-          <h2 className={`${role.headingSection} text-[1.05rem]`}>Thông tin hồ sơ</h2>
-          <form onSubmit={(e) => void onSave(e)} className="mt-8 max-w-xl space-y-6">
+          <form onSubmit={(e) => void onSave(e)} className="max-w-xl space-y-6">
             <div>
               <label className={`${role.caption} text-abnb-body`} htmlFor="settings-full_name">
                 Họ tên *
@@ -301,86 +210,6 @@ export function ProfileSettingsPage() {
               {saveMsg}
             </p>
           ) : null}
-
-          {profileAllowsPasswordChange(user.identities) ? (
-            <>
-              <div className="my-10 border-t border-abnb-hairlineSoft/90" />
-              <div className="flex items-center gap-2">
-                <KeyRound className="h-5 w-5 shrink-0 text-abnb-muted" aria-hidden />
-                <h2 className={`${role.headingSection} text-[1.05rem]`}>Đổi mật khẩu</h2>
-              </div>
-              <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
-                Xác nhận mật khẩu hiện tại rồi nhập mật khẩu mới. Áp dụng cho đăng nhập bằng{' '}
-                {user.email ? 'email' : ''}
-                {user.email && user.phone ? ' hoặc ' : ''}
-                {user.phone ? 'số điện thoại' : ''}.
-              </p>
-              <form onSubmit={(e) => void submitPasswordChange(e)} className="mt-6 max-w-xl space-y-5">
-                <div>
-                  <label className={`${role.caption} text-abnb-body`} htmlFor="pwd-current">
-                    Mật khẩu hiện tại
-                  </label>
-                  <input
-                    id="pwd-current"
-                    type="password"
-                    autoComplete="current-password"
-                    value={pwdCurrent}
-                    onChange={(e) => setPwdCurrent(e.target.value)}
-                    className={`${role.input} mt-2`}
-                  />
-                </div>
-                <div>
-                  <label className={`${role.caption} text-abnb-body`} htmlFor="pwd-new">
-                    Mật khẩu mới
-                  </label>
-                  <input
-                    id="pwd-new"
-                    type="password"
-                    autoComplete="new-password"
-                    value={pwdNew}
-                    onChange={(e) => setPwdNew(e.target.value)}
-                    className={`${role.input} mt-2`}
-                  />
-                </div>
-                <div>
-                  <label className={`${role.caption} text-abnb-body`} htmlFor="pwd-confirm">
-                    Nhập lại mật khẩu mới
-                  </label>
-                  <input
-                    id="pwd-confirm"
-                    type="password"
-                    autoComplete="new-password"
-                    value={pwdConfirm}
-                    onChange={(e) => setPwdConfirm(e.target.value)}
-                    className={`${role.input} mt-2`}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={pwdBusy}
-                  className={`${role.btnSecondary} !rounded-full px-8 disabled:opacity-60`}
-                >
-                  {pwdBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cập nhật mật khẩu'}
-                </button>
-              </form>
-              {pwdMsg ? (
-                <p
-                  className={`mt-4 text-sm ${pwdMsg.kind === 'ok' ? 'text-abnb-ink' : 'text-abnb-error'}`}
-                  role="status"
-                >
-                  {pwdMsg.text}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <div className="my-10 border-t border-abnb-hairlineSoft/90" />
-              <h2 className={`${role.headingSection} text-[1.05rem]`}>Mật khẩu</h2>
-              <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
-                Bạn đăng nhập bằng Google — không đổi mật khẩu tại đây.
-              </p>
-            </>
-          )}
         </div>
       </div>
     </div>

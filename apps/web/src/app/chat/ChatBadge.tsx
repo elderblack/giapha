@@ -1,5 +1,5 @@
 import { Maximize2, MessageCircle, Search } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
@@ -15,10 +15,31 @@ export function ChatBadge() {
   const navigate = useNavigate()
   const { popoverOpen, setPopoverOpen, openMiniConversation, miniConversationId } = useChatDock()
   const rootRef = useRef<HTMLDivElement>(null)
-  const badgeRealtimeKey = useRef(`badge-${Math.random().toString(36).slice(2, 11)}`)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const [unread, setUnread] = useState(0)
   const [search, setSearch] = useState('')
+  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null)
   const { threads, loading } = useChatThreads()
+
+  const updatePopoverPosition = useCallback(() => {
+    const el = buttonRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const margin = 8
+    const right = Math.max(margin, window.innerWidth - r.right)
+    setPopoverPos({ top: r.bottom + 6, right })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!popoverOpen) return
+    updatePopoverPosition()
+    window.addEventListener('resize', updatePopoverPosition)
+    window.addEventListener('scroll', updatePopoverPosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePopoverPosition)
+      window.removeEventListener('scroll', updatePopoverPosition, true)
+    }
+  }, [popoverOpen, updatePopoverPosition])
 
   const loadUnread = useCallback(async () => {
     if (!sb || !uid) return
@@ -47,12 +68,13 @@ export function ChatBadge() {
   }, [sb, uid])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial/sync unread from Supabase
     void loadUnread()
   }, [loadUnread])
 
   useEffect(() => {
     if (!sb || !uid) return
-    const topic = `family-chat-badge:${uid}:${badgeRealtimeKey.current}`
+    const topic = `family-chat-badge:${uid}`
     const ch = sb
       .channel(topic)
       .on(
@@ -102,8 +124,9 @@ export function ChatBadge() {
   if (!sb || !uid) return null
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => togglePopover()}
         className="relative inline-flex h-10 items-center justify-center rounded-full border border-abnb-hairlineSoft bg-abnb-canvas px-3 shadow-abnb-inner transition-colors hover:bg-abnb-surfaceSoft"
@@ -118,9 +141,10 @@ export function ChatBadge() {
           </span>
         )}
       </button>
-      {popoverOpen ? (
+      {popoverOpen && popoverPos ? (
         <div
-          className="absolute right-0 top-[calc(100%+6px)] z-[100] flex w-[min(100vw-1rem,22rem)] flex-col overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb-lg"
+          className="fixed z-[100] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb-lg"
+          style={{ top: popoverPos.top, right: popoverPos.right }}
           role="dialog"
           aria-label="Tin nhắn"
         >

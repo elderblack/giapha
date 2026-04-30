@@ -1,4 +1,4 @@
-import { Camera, Home, Loader2, MessageCircle, Settings, Upload } from 'lucide-react'
+import { Camera, ChevronDown, Home, Loader2, LogOut, MessageCircle, Settings, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
@@ -25,7 +25,7 @@ type ProfileRow = {
 export function ProfilePage() {
   const { userId: paramUserId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const sb = getSupabase()
 
   const profileUserId = paramUserId ?? user?.id ?? null
@@ -40,7 +40,6 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null)
   const [tab, setTab] = useState<'posts' | 'photos' | 'about'>('posts')
-  const [isFriend, setIsFriend] = useState(false)
   const [dmBusy, setDmBusy] = useState(false)
 
   useEffect(() => {
@@ -48,26 +47,6 @@ export function ProfilePage() {
       navigate('/app/profile', { replace: true })
     }
   }, [paramUserId, user?.id, navigate])
-
-  useEffect(() => {
-    if (!sb || !uid || !profileUserId || isSelf) {
-      setIsFriend(false)
-      return
-    }
-    let mounted = true
-    void (async () => {
-      const low = uid < profileUserId ? uid : profileUserId
-      const high = uid < profileUserId ? profileUserId : uid
-      const { data } = await sb
-        .from('family_friendships')
-        .select('user_low')
-        .eq('user_low', low)
-        .eq('user_high', high)
-        .maybeSingle()
-      if (mounted) setIsFriend(Boolean(data))
-    })()
-    return () => { mounted = false }
-  }, [sb, uid, profileUserId, isSelf])
 
   useEffect(() => {
     if (!profileUserId || !sb) {
@@ -180,9 +159,18 @@ export function ProfilePage() {
   async function openDm() {
     if (!sb || !profileUserId || isSelf) return
     setDmBusy(true)
+    setSaveMsg(null)
     const { data, error } = await sb.rpc('family_chat_open_dm', { other_user_id: profileUserId })
     setDmBusy(false)
-    if (!error && data) navigate(`/app/chat/${data as string}`)
+    if (error) {
+      setSaveMsg(
+        error.message?.includes('not_eligible') || error.message?.includes('not_friends')
+          ? 'Không thể nhắn tin. Chỉ mở được với người cùng dòng họ hoặc bạn bè.'
+          : error.message,
+      )
+      return
+    }
+    if (data) navigate(`/app/chat/${data as string}`)
   }
 
   function closeCoverCropWithoutSave() {
@@ -252,13 +240,52 @@ export function ProfilePage() {
                 </Link>
                 {isSelf ? (
                   <>
-                    <Link
-                      to="/app/profile/settings"
-                      className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
-                    >
-                      <Settings className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
-                      Cài đặt
-                    </Link>
+                    <details className="relative inline-block">
+                      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px] [&::-webkit-details-marker]:hidden">
+                        <Settings className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
+                        Cài đặt
+                        <ChevronDown className="h-3 w-3 opacity-70 sm:h-3.5 sm:w-3.5" strokeWidth={2} aria-hidden />
+                      </summary>
+                      <div
+                        className="absolute right-0 top-[calc(100%+6px)] z-30 min-w-[13.5rem] overflow-hidden rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-surfaceCard py-1.5 text-left shadow-abnb-lg"
+                        role="menu"
+                      >
+                        <Link
+                          to="/app/profile/settings/profile"
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
+                          role="menuitem"
+                          onClick={(e) => {
+                            ;(e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute(
+                              'open',
+                            )
+                          }}
+                        >
+                          Chỉnh sửa thông tin
+                        </Link>
+                        <Link
+                          to="/app/profile/settings/security"
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
+                          role="menuitem"
+                          onClick={(e) => {
+                            ;(e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute(
+                              'open',
+                            )
+                          }}
+                        >
+                          Đổi mật khẩu
+                        </Link>
+                        <div className="my-1 h-px bg-abnb-hairlineSoft/85" aria-hidden />
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-semibold text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft hover:text-abnb-error"
+                          onClick={() => void signOut()}
+                        >
+                          <LogOut className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
+                          Đăng xuất
+                        </button>
+                      </div>
+                    </details>
                     <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]">
                       <Upload className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
                       Ảnh bìa
@@ -328,10 +355,23 @@ export function ProfilePage() {
                   <p className={`${role.bodyMd} mt-2 line-clamp-4 text-abnb-body`}>{bioLine}</p>
                 ) : (
                   <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
-                    {isSelf ? 'Thêm giới thiệu trong Cài đặt tài khoản.' : 'Chưa có tiểu sử công khai.'}
+                    {isSelf ? (
+                      <>
+                        Thêm giới thiệu trong mục{' '}
+                        <Link
+                          to="/app/profile/settings/profile"
+                          className="font-semibold text-abnb-primary hover:underline"
+                        >
+                          Chỉnh sửa thông tin
+                        </Link>
+                        .
+                      </>
+                    ) : (
+                      'Chưa có tiểu sử công khai.'
+                    )}
                   </p>
                 )}
-                {!isSelf && isFriend && (
+                {!isSelf ? (
                   <button
                     type="button"
                     disabled={dmBusy}
@@ -341,7 +381,7 @@ export function ProfilePage() {
                     <MessageCircle className="mr-1.5 inline h-4 w-4" strokeWidth={2} />
                     Nhắn tin
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
 
@@ -376,7 +416,7 @@ export function ProfilePage() {
           </div>
         </article>
 
-        {saveMsg && isSelf ? (
+        {saveMsg ? (
           <p className={`${role.bodySm} mt-4 text-center text-abnb-muted`} role="status">
             {saveMsg}
           </p>

@@ -1,14 +1,12 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Home, LogOut, Settings, TreePine, Users, UserRound } from 'lucide-react'
+import { Home, TreePine, Users, UserRound } from 'lucide-react'
 import { ChatBadge } from './chat/ChatBadge'
 import { FloatingMiniChat } from './chat/FloatingMiniChat'
+import { HeaderProfileAvatar } from './HeaderProfileAvatar'
 import { NotificationBell } from './NotificationBell'
-import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
 
 export function AppShell() {
-  const { signOut } = useAuth()
-
   const navCls = ({ isActive }: { isActive: boolean }) =>
     `whitespace-nowrap rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors sm:text-[15px] sm:px-4 ${
       isActive
@@ -60,51 +58,7 @@ export function AppShell() {
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <ChatBadge />
             <NotificationBell />
-            <details className="group relative shrink-0">
-              <summary
-                className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-abnb-hairlineSoft bg-abnb-canvas text-abnb-ink shadow-abnb-inner transition-colors hover:border-abnb-hairline hover:bg-abnb-surfaceSoft [&::-webkit-details-marker]:hidden"
-                aria-label="Cài đặt và đăng xuất"
-              >
-                <Settings className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
-              </summary>
-              <div
-                className="absolute right-0 top-full z-[100] mt-2 min-w-[13.5rem] overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard py-1.5 text-left shadow-abnb"
-                role="menu"
-              >
-                <Link
-                  to="/app/profile"
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-[14px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
-                  role="menuitem"
-                  onClick={(e) => {
-                    ;(e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open')
-                  }}
-                >
-                  <UserRound className="h-4 w-4 shrink-0 text-abnb-muted" strokeWidth={2} aria-hidden />
-                  Xem hồ sơ
-                </Link>
-                <Link
-                  to="/app/profile/settings"
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-[14px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
-                  role="menuitem"
-                  onClick={(e) => {
-                    ;(e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open')
-                  }}
-                >
-                  <Settings className="h-4 w-4 shrink-0 text-abnb-muted" strokeWidth={2} aria-hidden />
-                  Cài đặt tài khoản
-                </Link>
-                <div className="my-1 h-px bg-abnb-hairlineSoft/85" aria-hidden />
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => void signOut()}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] font-semibold text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft hover:text-abnb-error"
-                >
-                  <LogOut className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
-                  Đăng xuất
-                </button>
-              </div>
-            </details>
+            <HeaderProfileAvatar />
           </div>
         </div>
       </header>

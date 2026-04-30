@@ -8,7 +8,8 @@ import { LoginPage } from './app/LoginPage'
 import { ResetPasswordPage } from './app/ResetPasswordPage'
 import { ClaimInvitePage } from './app/ClaimInvitePage'
 import { ProfilePage } from './app/ProfilePage'
-import { ProfileSettingsPage } from './app/ProfileSettingsPage'
+import { ProfileSettingsProfilePage } from './app/ProfileSettingsProfilePage'
+import { ProfileSettingsSecurityPage } from './app/ProfileSettingsSecurityPage'
 import { TreeCreatePage } from './app/TreeCreatePage'
 import { TreeDetailLayout } from './app/TreeDetailLayout'
 import { TreeOverviewPage } from './app/TreeOverviewPage'
@@ -54,7 +55,9 @@ export default function App() {
       >
         <Route index element={<AppEntryRedirect />} />
         <Route path="home" element={<AppHome />} />
-        <Route path="profile/settings" element={<ProfileSettingsPage />} />
+        <Route path="profile/settings/profile" element={<ProfileSettingsProfilePage />} />
+        <Route path="profile/settings/security" element={<ProfileSettingsSecurityPage />} />
+        <Route path="profile/settings" element={<Navigate to="/app/profile/settings/profile" replace />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="u/:userId" element={<ProfilePage />} />
         <Route path="claim-invite" element={<ClaimInvitePage />} />
