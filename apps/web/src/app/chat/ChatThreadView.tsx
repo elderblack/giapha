@@ -6,6 +6,7 @@ import { getSupabase } from '../../lib/supabase'
 import { MessageComposer } from './MessageComposer'
 import { MessageList } from './MessageList'
 import type { ChatParticipant } from './types'
+import { markFamilyChatConversationRead } from './chatReadSync'
 import { useChatMessages } from './useChatMessages'
 import { useChatPresence } from './useChatPresence'
 
@@ -53,11 +54,7 @@ export function ChatThreadView(props: {
 
   useEffect(() => {
     if (!sb || !uid || !conversationId || loading) return
-    void sb
-      .from('family_chat_participants')
-      .update({ last_read_at: new Date().toISOString() })
-      .eq('conversation_id', conversationId)
-      .eq('user_id', uid)
+    void markFamilyChatConversationRead(sb, uid, conversationId)
   }, [sb, uid, conversationId, messages.length, loading])
 
   const avatar =

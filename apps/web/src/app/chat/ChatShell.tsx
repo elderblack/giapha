@@ -1,11 +1,17 @@
 import { MessageCircle } from 'lucide-react'
 import { Outlet, useParams } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
+import { getSupabase } from '../../lib/supabase'
 import { role } from '../../design/roles'
+import { markFamilyChatConversationRead } from './chatReadSync'
 import { ThreadList } from './ThreadList'
 import { useChatThreads } from './useChatThreads'
 
 export function ChatShell() {
   const { conversationId } = useParams<{ conversationId: string }>()
+  const { user } = useAuth()
+  const sb = getSupabase()
+  const uid = user?.id
   const { threads, loading } = useChatThreads()
 
   return (
@@ -21,7 +27,14 @@ export function ChatShell() {
           <h1 className={`${role.headingModule} m-0`}>Tin nhắn</h1>
         </div>
         <div className="h-[calc(100%-3.5rem)] overflow-y-auto">
-          <ThreadList threads={threads} loading={loading} activeId={conversationId} />
+          <ThreadList
+            threads={threads}
+            loading={loading}
+            activeId={conversationId}
+            onThreadActivate={
+              sb && uid ? (id) => void markFamilyChatConversationRead(sb, uid, id) : undefined
+            }
+          />
         </div>
       </aside>
       {/* Main */}

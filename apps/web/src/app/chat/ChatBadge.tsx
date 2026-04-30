@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
 import { role } from '../../design/roles'
+import { markFamilyChatConversationRead } from './chatReadSync'
 import { useChatDock } from './ChatDockContext'
 import { ThreadList } from './ThreadList'
 import { useChatThreads } from './useChatThreads'
@@ -16,10 +17,12 @@ export function ChatBadge() {
   const { popoverOpen, setPopoverOpen, openMiniConversation, miniConversationId } = useChatDock()
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const [unread, setUnread] = useState(0)
   const [search, setSearch] = useState('')
   const [popoverBox, setPopoverBox] = useState<{ top: number; left: number; width: number } | null>(null)
-  const { threads, loading } = useChatThreads()
+  const { threads, loading, reload } = useChatThreads()
+
+  /** Cùng nguồn với từng dòng trong ThreadList để không lệch số badge. */
+  const unreadTotal = useMemo(() => threads.reduce((s, t) => s + t.unreadCount, 0), [threads])
 
   const updatePopoverPosition = useCallback(() => {
     const el = buttonRef.current
@@ -46,55 +49,6 @@ export function ChatBadge() {
       window.removeEventListener('scroll', updatePopoverPosition, true)
     }
   }, [popoverOpen, updatePopoverPosition])
-
-  const loadUnread = useCallback(async () => {
-    if (!sb || !uid) return
-
-    const { data: parts } = await sb
-      .from('family_chat_participants')
-      .select('conversation_id,last_read_at')
-      .eq('user_id', uid)
-
-    if (!parts || parts.length === 0) {
-      setUnread(0)
-      return
-    }
-
-    let total = 0
-    for (const p of parts as { conversation_id: string; last_read_at: string | null }[]) {
-      const { count } = await sb
-        .from('family_chat_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('conversation_id', p.conversation_id)
-        .neq('sender_id', uid)
-        .gt('created_at', p.last_read_at ?? '1970-01-01T00:00:00Z')
-      total += count ?? 0
-    }
-    setUnread(total)
-  }, [sb, uid])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial/sync unread from Supabase
-    void loadUnread()
-  }, [loadUnread])
-
-  useEffect(() => {
-    if (!sb || !uid) return
-    const topic = `family-chat-badge:${uid}`
-    const ch = sb
-      .channel(topic)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'family_chat_messages' },
-        () => {
-          void loadUnread()
-        },
-      )
-      .subscribe()
-    return () => {
-      sb.removeChannel(ch)
-    }
-  }, [sb, uid, loadUnread])
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -124,7 +78,7 @@ export function ChatBadge() {
   function togglePopover() {
     const next = !popoverOpen
     setPopoverOpen(next)
-    if (next) void loadUnread()
+    if (next) void reload()
   }
 
   if (!sb || !uid) return null
@@ -141,9 +95,9 @@ export function ChatBadge() {
         title="Tin nhắn"
       >
         <MessageCircle className="h-[18px] w-[18px] text-abnb-ink" strokeWidth={2} />
-        {unread > 0 && (
+        {unreadTotal > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full bg-abnb-primary px-1 text-[10px] font-bold leading-none text-abnb-onPrimary">
-            {unread > 9 ? '9+' : unread}
+            {unreadTotal > 9 ? '9+' : unreadTotal}
           </span>
         )}
       </button>
@@ -192,6 +146,9 @@ export function ChatBadge() {
               activeId={miniConversationId ?? undefined}
               mode="pick"
               onPick={(id) => openMiniConversation(id)}
+              onThreadActivate={(id) => {
+                void markFamilyChatConversationRead(sb, uid, id)
+              }}
             />
           </div>
           <div className="shrink-0 border-t border-abnb-hairlineSoft p-2">

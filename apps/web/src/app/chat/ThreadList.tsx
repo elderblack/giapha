@@ -23,6 +23,8 @@ export function ThreadList(props: {
   /** 'link' = điều hướng /app/chat/:id (mặc định). 'pick' = gọi onPick, dùng trong popover dock. */
   mode?: 'link' | 'pick'
   onPick?: (conversationId: string) => void
+  /** Đánh dấu đã đọc + đồng bộ danh sách trước khi vào luồng (link mode). */
+  onThreadActivate?: (conversationId: string) => void
 }) {
   const mode = props.mode ?? 'link'
   if (props.loading) {
@@ -98,12 +100,19 @@ export function ThreadList(props: {
               <button
                 type="button"
                 className={rowCls}
-                onClick={() => props.onPick?.(t.conversation.id)}
+                onClick={() => {
+                  props.onThreadActivate?.(t.conversation.id)
+                  props.onPick?.(t.conversation.id)
+                }}
               >
                 {inner}
               </button>
             ) : (
-              <Link to={`/app/chat/${t.conversation.id}`} className={rowCls}>
+              <Link
+                to={`/app/chat/${t.conversation.id}`}
+                className={rowCls}
+                onClick={() => props.onThreadActivate?.(t.conversation.id)}
+              >
                 {inner}
               </Link>
             )}
