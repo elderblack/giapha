@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen, Network, Users } from 'lucide-react'
 import { role } from '../design/roles'
-import { AppProductTour } from '../AppProductTour'
+import { AppProductTour } from './AppProductTour'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { TreePageIntro } from './tree/TreeChrome'
 

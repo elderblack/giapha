@@ -1,16 +1,21 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { List, Move, Pointer, User, UserPlus, X } from 'lucide-react'
+import { List, Move, Pointer, UserPlus } from 'lucide-react'
 import { FamilyTreeChart } from '../components/FamilyTreeChart'
 import { FamilyTreeHierarchyChart } from '../components/FamilyTreeHierarchyChart'
 import { role } from '../design/roles'
 import { useAuth } from '../auth/useAuth'
-import { formatDateVi, genderLabel, parentLabel, spouseLabel } from './tree/treeTypes'
 import { TreePageIntro } from './tree/TreeChrome'
-import { memberInitial, treeAlertInfo } from './tree/treeUi'
+import { treeAlertInfo } from './tree/treeUi'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { describeKinship } from '../lib/kinshipVi'
 import { AddMemberModal } from './tree/AddMemberModal'
+import { useMaxLg } from '../hooks/useMaxLg'
+import {
+  MemberDetailFields,
+  MemberDetailSummaryHeader,
+} from './tree/TreeMemberDetailContent'
+import { TreeMemberDetailModal } from './tree/TreeMemberDetailModal'
 
 export function TreeChartPage() {
   const { user } = useAuth()
@@ -34,6 +39,7 @@ export function TreeChartPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addModalKey, setAddModalKey] = useState(0)
+  const maxLg = useMaxLg()
 
   const canProposeMember = myTreeRole === 'member' && Boolean(myLinkedMemberId)
   const canOpenAddModal = canEditMembers || canProposeMember
@@ -51,7 +57,7 @@ export function TreeChartPage() {
   return (
     <div className="animate-fade-up space-y-8">
       <TreePageIntro kicker="Phả hệ" title="Sơ đồ quan hệ">
-        Dùng cử chỉ hoặc chuột để kéo khung vẽ; chọn một người — trên điện thoại thông tin hiện ngay phía trên sơ đồ. Bấm ✕ để bỏ chọn và xem lại cây.
+        Dùng cử chỉ hoặc chuột để kéo khung vẽ; chọn một người để xem chi tiết — trên điện thoại và máy tính bảng mở trong cửa sổ; trên màn hình lớn thông tin nằm ở cột bên phải.
       </TreePageIntro>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -104,7 +110,7 @@ export function TreeChartPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(17rem,280px)] lg:items-start">
-        <section className={`min-w-0 scroll-mt-4 ${selectedId ? 'max-lg:order-2' : ''}`}>
+        <section className="min-w-0 scroll-mt-4">
           <div
             className={`${role.card} overflow-hidden !p-0 shadow-abnb-lg ring-1 ring-abnb-hairlineSoft/60`}
             style={{ minHeight: members === null ? 200 : 420 }}
@@ -154,54 +160,21 @@ export function TreeChartPage() {
         </section>
 
         <aside
-          className={`${role.card} !p-0 scroll-mt-20 max-lg:shadow-abnb-lg lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:shadow-none ${selectedId ? 'max-lg:order-1' : ''}`}
+          className={`${role.card} !p-0 scroll-mt-20 hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:shadow-none`}
         >
           <div className="border-b border-abnb-hairlineSoft/80 bg-abnb-surfaceSoft/40 px-4 py-3 sm:px-5 sm:py-4">
-            <div className="flex items-start gap-3">
-              {selected ? (
-                selected.avatar_url ? (
-                  <img
-                    src={selected.avatar_url}
-                    alt=""
-                    className="h-12 w-12 shrink-0 rounded-full object-cover shadow-abnb ring-2 ring-abnb-canvas"
-                  />
-                ) : (
-                  <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-abnb-primary/18 to-abnb-luxe/12 text-[15px] font-bold text-abnb-primary shadow-abnb-inner ring-2 ring-abnb-canvas"
-                    aria-hidden
-                  >
-                    {memberInitial(selected.full_name)}
-                  </div>
-                )
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-abnb-ink">
-                  {!selected ? 'Thông tin nhanh' : selected.full_name}
-                </p>
-                {!selected ? (
-                  <p className={`${role.bodySm} mt-1 text-abnb-muted`}>Chọn một người trên đồ thị.</p>
-                ) : (
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <p className={`${role.caption}`}>Thế hệ {gen}</p>
-                    {myLinkedMemberId === selected.id ? (
-                      <span className="rounded-full bg-abnb-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-abnb-primary ring-1 ring-abnb-primary/25">
-                        Bạn
-                      </span>
-                    ) : null}
-                  </div>
-                )}
+            {!selected ? (
+              <div>
+                <p className="text-[13px] font-semibold text-abnb-ink">Thông tin nhanh</p>
+                <p className={`${role.bodySm} mt-1 text-abnb-muted`}>Chọn một người trên đồ thị.</p>
               </div>
-              {selected ? (
-                <button
-                  type="button"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-abnb-hairlineSoft bg-abnb-canvas text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft hover:text-abnb-ink lg:hidden"
-                  aria-label="Bỏ chọn, xem lại cây phía trên"
-                  onClick={() => setSelectedId(null)}
-                >
-                  <X className="h-[18px] w-[18px]" strokeWidth={2} />
-                </button>
-              ) : null}
-            </div>
+            ) : (
+              <MemberDetailSummaryHeader
+                selected={selected}
+                gen={gen}
+                myLinkedMemberId={myLinkedMemberId}
+              />
+            )}
           </div>
 
           <div className="px-5 py-4">
@@ -220,83 +193,19 @@ export function TreeChartPage() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-4">
-                <dl className="space-y-3 text-[13px]">
-                  <div className="flex justify-between gap-3 border-b border-abnb-hairlineSoft/70 pb-3">
-                    <dt className="text-abnb-muted">Giới tính</dt>
-                    <dd className="text-right font-medium text-abnb-ink">
-                      {selected.gender ? genderLabel[selected.gender] ?? selected.gender : '—'}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3 border-b border-abnb-hairlineSoft/70 pb-3">
-                    <dt className="text-abnb-muted">Sinh</dt>
-                    <dd className="font-medium text-abnb-ink">{formatDateVi(selected.birth_date)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3 border-b border-abnb-hairlineSoft/70 pb-3">
-                    <dt className="text-abnb-muted">Mất</dt>
-                    <dd className="font-medium text-abnb-ink">{formatDateVi(selected.death_date)}</dd>
-                  </div>
-                  <div className="border-b border-abnb-hairlineSoft/70 pb-3">
-                    <dt className="text-abnb-muted">Cha / mẹ</dt>
-                    <dd className="mt-1.5 font-medium leading-snug text-abnb-ink">
-                      {parentLabel(members ?? [], selected.father_id)} ·{' '}
-                      {parentLabel(members ?? [], selected.mother_id)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-abnb-muted">Vợ / chồng</dt>
-                    <dd className="mt-1.5 font-medium text-abnb-ink">{spouseLabel(members ?? [], selected)}</dd>
-                  </div>
-                </dl>
-
-                {kinship ? (
-                  <p className={`${role.bodySm} rounded-abnb-lg border border-abnb-hairlineSoft/70 bg-abnb-surfaceSoft/50 px-3 py-2 text-abnb-muted`}>
-                    Vai vế (gợi ý):{' '}
-                    <span className="font-semibold text-abnb-ink">{kinship}</span>
-                  </p>
-                ) : null}
-
-                {selected.linked_profile_id ? (
-                  <p className={`${role.bodySm} font-medium text-abnb-primary`}>
-                    Đã liên kết tài khoản
-                    {selected.linked_profile_id === user?.id ? ' (bạn)' : ''}
-                  </p>
-                ) : null}
-
-                {user?.id && canUseClaim ? (
-                  <div className="flex flex-col gap-2 border-t border-abnb-hairlineSoft pt-4">
-                    {!selected.linked_profile_id && !myLinkedMemberId ? (
-                      <button
-                        type="button"
-                        disabled={linkBusyId !== null}
-                        onClick={() => void claimMember(selected.id)}
-                        className="inline-flex items-center justify-center gap-2 rounded-full border border-abnb-hairlineSoft bg-abnb-surfaceSoft px-4 py-2.5 text-[13px] font-semibold text-abnb-ink transition-colors hover:bg-abnb-hairlineSoft/35 disabled:opacity-60"
-                      >
-                        <User className="h-4 w-4" />
-                        Đây là tôi
-                      </button>
-                    ) : null}
-                    {selected.linked_profile_id === user?.id ? (
-                      <button
-                        type="button"
-                        disabled={linkBusyId !== null}
-                        onClick={() => void unlinkMember(selected.id)}
-                        className="rounded-full border border-abnb-hairlineSoft px-4 py-2.5 text-[13px] font-semibold text-abnb-muted hover:bg-abnb-surfaceSoft disabled:opacity-60"
-                      >
-                        Huỷ liên kết
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <Link
-                  to={`${base}/members`}
-                  className="inline-flex items-center gap-2 text-[13px] font-semibold text-abnb-primary no-underline hover:underline"
-                >
-                  <List className="h-4 w-4" />
-                  Sửa trong danh sách
-                </Link>
-              </div>
+              <MemberDetailFields
+                variant="aside"
+                selected={selected}
+                members={members}
+                kinship={kinship}
+                userId={user?.id}
+                canUseClaim={canUseClaim}
+                myLinkedMemberId={myLinkedMemberId}
+                linkBusyId={linkBusyId}
+                onClaim={claimMember}
+                onUnlink={unlinkMember}
+                base={base}
+              />
             )}
           </div>
         </aside>
@@ -316,6 +225,35 @@ export function TreeChartPage() {
           void loadMembers()
         }}
       />
+
+      {selected && maxLg ? (
+        <TreeMemberDetailModal
+          open
+          titleId="tree-member-detail-title"
+          onClose={() => setSelectedId(null)}
+        >
+          <div className="border-b border-abnb-hairlineSoft/80 bg-abnb-surfaceSoft/40 px-4 pb-3 pt-1 sm:px-5">
+            <MemberDetailSummaryHeader
+              selected={selected}
+              gen={gen}
+              myLinkedMemberId={myLinkedMemberId}
+              titleId="tree-member-detail-title"
+            />
+          </div>
+          <MemberDetailFields
+            selected={selected}
+            members={members}
+            kinship={kinship}
+            userId={user?.id}
+            canUseClaim={canUseClaim}
+            myLinkedMemberId={myLinkedMemberId}
+            linkBusyId={linkBusyId}
+            onClaim={claimMember}
+            onUnlink={unlinkMember}
+            base={base}
+          />
+        </TreeMemberDetailModal>
+      ) : null}
     </div>
   )
 }
