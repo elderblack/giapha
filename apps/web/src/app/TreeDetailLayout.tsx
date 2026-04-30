@@ -44,7 +44,7 @@ function TreeDetailShell() {
   const roleVariant = isOwner ? 'owner' : myTreeRole === 'editor' ? 'editor' : 'member'
 
   return (
-    <div className="mt-6 w-full max-w-6xl pb-14 sm:mt-8">
+    <div className="mt-4 w-full max-w-6xl sm:mt-6 md:mx-auto">
       <section className="relative overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft/90 bg-abnb-surfaceCard shadow-abnb">
         <div
           className="pointer-events-none absolute inset-0 opacity-90"
@@ -67,7 +67,7 @@ function TreeDetailShell() {
                 ) : null}
               </div>
             </div>
-            <p className={`${role.bodySm} max-w-md shrink-0 leading-relaxed text-abnb-muted lg:text-right`}>
+            <p className={`${role.bodySm} w-full max-w-none shrink-0 leading-relaxed text-abnb-muted lg:max-w-md lg:text-right`}>
               Bản tin và tổng quan ngay trang chủ dòng họ — phả hệ và thành viên trong các tab tiếp theo.
             </p>
           </div>
@@ -78,7 +78,7 @@ function TreeDetailShell() {
         </div>
       </section>
 
-      <div className="mt-8 sm:mt-10">
+      <div className="mt-6 pb-10 sm:mt-8 sm:pb-12">
         <Outlet />
       </div>
     </div>

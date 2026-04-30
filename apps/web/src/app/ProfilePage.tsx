@@ -220,7 +220,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="min-h-[100vh] bg-[#f0f2f5] pb-16 pt-2 dark:bg-abnb-canvas">
+    <div className="min-h-[100vh] bg-[#f0f2f5] pb-3 pt-1 sm:pb-16 sm:pt-2 dark:bg-abnb-canvas">
       <div className="mx-auto w-full max-w-[1016px] px-2 sm:px-4">
         <article className="overflow-hidden rounded-b-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb sm:rounded-xl">
           <div className="relative overflow-hidden rounded-t-xl bg-gradient-to-br from-abnb-primary/15 to-abnb-canvas">
@@ -242,25 +242,25 @@ export function ProfilePage() {
               )}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.22] via-transparent to-transparent" />
 
-              <div className="absolute bottom-3 right-3 z-[2] flex flex-wrap items-center justify-end gap-2">
+              <div className="absolute bottom-2 right-2 z-[2] flex max-w-[calc(100%-1rem)] flex-wrap items-center justify-end gap-1.5 sm:bottom-3 sm:right-3 sm:gap-2">
                 <Link
                   to="/app/home"
-                  className="inline-flex items-center gap-2 rounded-abnb-md bg-white px-3 py-2 text-[13px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5]"
+                  className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
                 >
-                  <Home className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  <Home className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
                   Trang nhà
                 </Link>
                 {isSelf ? (
                   <>
                     <Link
                       to="/app/profile/settings"
-                      className="inline-flex items-center gap-2 rounded-abnb-md bg-white px-3 py-2 text-[13px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5]"
+                      className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
                     >
-                      <Settings className="h-4 w-4 shrink-0" strokeWidth={2} />
+                      <Settings className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
                       Cài đặt
                     </Link>
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-abnb-md bg-white px-3 py-2 text-[13px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5]">
-                      <Upload className="h-4 w-4 shrink-0" strokeWidth={2} />
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]">
+                      <Upload className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
                       Ảnh bìa
                       <input
                         type="file"
@@ -280,7 +280,7 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <div className="relative px-5 pb-2 pt-10 sm:px-8 lg:pb-4">
+          <div className="relative px-4 pb-2 pt-9 sm:px-8 sm:pt-10 lg:pb-4">
             <div className="flex flex-col gap-5 sm:flex-row sm:gap-8">
               <div className="relative shrink-0 sm:-mt-20 sm:w-[172px]">
                 <div className="group relative mx-auto w-[clamp(11rem,30vw,10.75rem)] sm:mx-0 sm:w-[10.625rem]">
@@ -336,7 +336,7 @@ export function ProfilePage() {
                     type="button"
                     disabled={dmBusy}
                     onClick={() => void openDm()}
-                    className={`${role.btnPrimary} !h-10 !px-5 !text-[13px] mt-3`}
+                    className={`${role.btnPrimary} mx-auto mt-3 !h-10 w-full max-w-xs !px-5 !text-[13px] sm:mx-0 sm:w-auto`}
                   >
                     <MessageCircle className="mr-1.5 inline h-4 w-4" strokeWidth={2} />
                     Nhắn tin
@@ -346,7 +346,7 @@ export function ProfilePage() {
             </div>
 
             <div
-              className="mt-4 flex flex-wrap border-t border-abnb-hairlineSoft/90 pt-1"
+              className="mt-4 -mx-1 flex flex-nowrap gap-0 overflow-x-auto border-t border-abnb-hairlineSoft/90 pt-0 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:gap-0 [&::-webkit-scrollbar]:hidden"
               role="tablist"
               aria-label="Hồ sơ"
             >
@@ -362,7 +362,7 @@ export function ProfilePage() {
                   type="button"
                   role="tab"
                   aria-selected={tab === id}
-                  className={`relative -mb-px border-b-[3px] px-4 py-3.5 text-[15px] font-semibold transition-colors sm:px-7 ${
+                  className={`relative -mb-px shrink-0 snap-start border-b-[3px] px-4 py-3.5 text-[14px] font-semibold transition-colors sm:px-7 sm:text-[15px] ${
                     tab === id
                       ? 'border-abnb-primary text-abnb-primary'
                       : 'border-transparent text-abnb-muted hover:bg-abnb-canvas/80 hover:text-abnb-ink'

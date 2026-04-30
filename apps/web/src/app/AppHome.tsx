@@ -52,7 +52,7 @@ export function AppHome() {
       : null
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl">
       <AppProductTour />
 
       {homeTreeId === undefined ? (
@@ -81,7 +81,7 @@ function EmptyNoTree() {
   return (
     <>
       <div
-        className="relative w-full max-w-lg overflow-hidden rounded-abnb-2xl border border-abnb-hairlineSoft/90 bg-gradient-to-br from-abnb-primary/[0.09] via-abnb-canvas to-abnb-luxe/[0.06] px-8 py-12 shadow-abnb"
+        className="relative w-full max-w-lg overflow-hidden rounded-abnb-2xl border border-abnb-hairlineSoft/90 bg-gradient-to-br from-abnb-primary/[0.09] via-abnb-canvas to-abnb-luxe/[0.06] px-5 py-10 shadow-abnb sm:px-8 sm:py-12"
         style={{
           backgroundImage:
             'radial-gradient(640px 200px at 10% -20%, rgba(255, 113, 113, 0.12), transparent 55%), radial-gradient(480px 180px at 95% 0%, rgba(116, 98, 255, 0.08), transparent 50%)',
@@ -145,7 +145,7 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
               'radial-gradient(900px 240px at 12% -15%, rgba(255, 113, 113, 0.1), transparent 55%), radial-gradient(700px 200px at 92% 8%, rgba(116, 98, 255, 0.07), transparent 48%)',
           }}
         >
-          <div className="relative px-6 py-8 sm:px-10 sm:py-10">
+          <div className="relative px-5 py-6 sm:px-10 sm:py-10">
             <p className={role.kicker}>Mạng gia tộc · Trang nhà</p>
             <h1 className={`${role.headingSection} mt-2 max-w-2xl text-[1.65rem] leading-tight sm:text-[1.85rem]`}>
               Xin chào, <span className="text-abnb-ink">{greeting}</span>
@@ -154,7 +154,7 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
               Chia sẻ tin, ảnh và kỷ niệm với người trong cùng dòng họ — chỉ thành viên mới thấy bản tin bên dưới.
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            <div className="mt-7 flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="text-[15px] font-semibold tracking-tight text-abnb-ink">{tree.name}</span>
               <TreeRoleChip variant={roleVariant} />
               {tree.clan_name ? (
@@ -174,12 +174,12 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
         </div>
       </section>
 
-      <div className="mt-10 flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12">
+      <div className="mt-8 flex flex-col gap-8 sm:mt-10 lg:flex-row lg:items-start lg:gap-12">
         <section
           className="order-2 min-w-0 flex-1 overflow-x-clip lg:order-1"
           aria-label="Bản tin họ hàng"
         >
-          <header className="mb-8 flex flex-col gap-1 border-b border-abnb-hairlineSoft/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <header className="mb-6 flex flex-col gap-1 border-b border-abnb-hairlineSoft/80 pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
             <div>
               <h2 className={`${role.headingModule} text-[1.125rem]`}>Bản tin dòng họ</h2>
               <p className={`${role.caption} mt-1 normal-case text-abnb-muted`}>
@@ -191,10 +191,10 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
         </section>
 
         <aside
-          className="order-1 flex w-full shrink-0 flex-col gap-5 lg:order-2 lg:sticky lg:top-24 lg:w-[min(100%,18rem)] lg:self-start"
+          className="order-1 flex w-full max-w-full shrink-0 flex-col gap-4 sm:gap-5 lg:order-2 lg:sticky lg:top-24 lg:w-[min(100%,18rem)] lg:self-start"
           aria-label="Lối tắt và không gian dòng họ"
         >
-          <div className={`${role.cardQuiet} rounded-abnb-xl border border-abnb-hairlineSoft/90 p-5 shadow-abnb-inner`}>
+          <div className={`${role.cardQuiet} rounded-abnb-xl border border-abnb-hairlineSoft/90 p-4 shadow-abnb-inner sm:p-5`}>
             <p className={`${role.statLabel}`}>Không gian của bạn</p>
             <p className="mt-3 text-[14px] font-semibold leading-snug text-abnb-ink">{tree.name}</p>
             {memberCount !== null ? (
@@ -262,7 +262,7 @@ function QuickLinkRow({
 
 function FooterMiniLinks() {
   return (
-    <footer className={`${role.caption} mt-14 border-t border-abnb-hairlineSoft/70 pt-8 text-center text-abnb-muted`}>
+    <footer className={`${role.caption} mt-10 border-t border-abnb-hairlineSoft/70 pt-8 text-center text-abnb-muted sm:mt-14`}>
       <span className="inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         <span className="inline-flex items-center gap-1.5">
           <Newspaper className="h-3.5 w-3.5 opacity-70" strokeWidth={2} aria-hidden />

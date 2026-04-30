@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOut, Settings, TreePine, Users, UserRound } from 'lucide-react'
+import { Home, LogOut, Settings, TreePine, Users, UserRound } from 'lucide-react'
 import { ChatBadge } from './chat/ChatBadge'
 import { NotificationBell } from './NotificationBell'
 import { useAuth } from '../auth/useAuth'
@@ -15,20 +15,28 @@ export function AppShell() {
         : 'text-abnb-body hover:bg-abnb-canvas/60 hover:text-abnb-ink'
     }`
 
+  const bottomNavCls = ({ isActive }: { isActive: boolean }) =>
+    `flex min-h-[2.75rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-abnb-lg px-1 py-1.5 text-[10px] font-semibold leading-tight transition-colors sm:text-[11px] ${
+      isActive ? 'text-abnb-primary' : 'text-abnb-muted hover:text-abnb-ink'
+    }`
+
   return (
     <div className={role.appShellBg}>
       <header className={`${role.topNav} sticky top-0 z-40`}>
-        <div className="lp-container flex h-16 max-w-abnb items-center justify-between gap-3 sm:gap-4">
+        <div className="lp-container flex h-14 max-w-abnb items-center justify-between gap-2 sm:h-16 sm:gap-4">
           <Link
             to="/app/home"
-            className="flex shrink-0 items-center gap-2.5 text-abnb-ink no-underline transition-opacity hover:opacity-90"
+            className="flex min-w-0 shrink-0 items-center gap-2 text-abnb-ink no-underline transition-opacity hover:opacity-90 sm:gap-2.5"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-abnb-md bg-gradient-to-br from-abnb-primary/[0.15] to-abnb-luxe/[0.08] text-abnb-primary shadow-abnb-inner ring-1 ring-abnb-hairlineSoft">
-              <TreePine className="h-[1.125rem] w-[1.125rem]" strokeWidth={2} />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-abnb-md bg-gradient-to-br from-abnb-primary/[0.15] to-abnb-luxe/[0.08] text-abnb-primary shadow-abnb-inner ring-1 ring-abnb-hairlineSoft sm:h-10 sm:w-10">
+              <TreePine className="h-[1.05rem] w-[1.05rem] sm:h-[1.125rem] sm:w-[1.125rem]" strokeWidth={2} />
             </span>
-            <span className="text-[17px] font-semibold tracking-tight sm:text-[18px]">GiaPhả</span>
+            <span className="truncate text-[16px] font-semibold tracking-tight sm:text-[18px]">GiaPhả</span>
           </Link>
-          <nav className={`${role.appNavTrack} mx-2 min-w-0 flex-1 justify-center sm:mx-0 sm:flex-initial`} aria-label="Ứng dụng">
+          <nav
+            className={`${role.appNavTrack} mx-1 hidden min-w-0 flex-1 justify-center md:mx-2 md:flex md:flex-initial`}
+            aria-label="Ứng dụng"
+          >
             <NavLink to="/app/home" className={navCls}>
               Trang nhà
             </NavLink>
@@ -48,7 +56,7 @@ export function AppShell() {
               </span>
             </NavLink>
           </nav>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <ChatBadge />
             <NotificationBell />
             <details className="group relative shrink-0">
@@ -99,9 +107,34 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main className={`lp-container max-w-abnb ${role.appMain}`}>
+      <main className="lp-container max-w-abnb pt-5 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pt-6 md:pb-20">
         <Outlet />
       </main>
+
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-abnb-hairlineSoft/90 bg-abnb-canvas/92 backdrop-blur-lg backdrop-saturate-150 md:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        aria-label="Điều hướng chính"
+      >
+        <div className="mx-auto flex max-w-abnb items-stretch justify-between gap-0.5 px-1 pt-1">
+          <NavLink to="/app/home" className={bottomNavCls} end>
+            <Home className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
+            <span>Trang nhà</span>
+          </NavLink>
+          <NavLink to="/app/trees" className={bottomNavCls}>
+            <TreePine className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
+            <span>Dòng họ</span>
+          </NavLink>
+          <NavLink to="/app/connections" className={bottomNavCls}>
+            <Users className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
+            <span>Kết nối</span>
+          </NavLink>
+          <NavLink to="/app/profile" className={bottomNavCls} end>
+            <UserRound className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
+            <span>Hồ sơ</span>
+          </NavLink>
+        </div>
+      </nav>
     </div>
   )
 }

@@ -181,7 +181,7 @@ export function ConnectionsPage() {
   return (
     <div className="mx-auto w-full max-w-5xl">
       <div className={`${role.pageHero} animate-fade-up overflow-hidden`}>
-        <div className="flex items-start gap-4">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start">
           <span className={`${role.iconTile} !h-14 !w-14`}>
             <Users className="h-7 w-7" strokeWidth={1.75} />
           </span>
@@ -238,7 +238,7 @@ export function ConnectionsPage() {
                   {suggested.map((p) => (
                     <li
                       key={p.id}
-                      className={`${role.cardQuiet} flex flex-wrap items-center justify-between gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3`}
+                      className={`${role.cardQuiet} flex flex-col gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between`}
                     >
                       <div className="min-w-0">
                         <p className="font-semibold text-abnb-ink">
@@ -250,12 +250,12 @@ export function ConnectionsPage() {
                           {friendSet.has(p.id) ? 'Đã là bạn' : followingSet.has(p.id) ? 'Đang theo dõi' : 'Cùng họ'}
                         </p>
                       </div>
-                      <div className="flex shrink-0 flex-wrap gap-2">
+                      <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                         {!friendSet.has(p.id) ? (
                           <button
                             type="button"
                             disabled={busyId === p.id}
-                            className={`${role.btnPrimary} !h-10 !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                            className={`${role.btnPrimary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                             onClick={() => void sendFriend(p.id)}
                           >
                             Kết bạn
@@ -264,7 +264,7 @@ export function ConnectionsPage() {
                         <button
                           type="button"
                           disabled={busyId === `fol-${p.id}`}
-                          className={`${role.btnSecondary} !h-10 !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                          className={`${role.btnSecondary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                           onClick={() => void toggleFollow(p.id, followingSet.has(p.id))}
                         >
                           {followingSet.has(p.id) ? 'Bỏ theo dõi' : 'Theo dõi'}
@@ -286,18 +286,18 @@ export function ConnectionsPage() {
                 {pendingIn.map((r) => (
                   <li
                     key={r.id}
-                    className={`${role.cardQuiet} flex flex-wrap items-center justify-between gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3`}
+                    className={`${role.cardQuiet} flex flex-col gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between`}
                   >
-                    <span className="font-medium text-abnb-ink">
+                    <span className="min-w-0 font-medium text-abnb-ink">
                       <Link to={`/app/u/${r.from_id}`} className={`${role.link} font-medium no-underline`}>
                         {r.profiles?.full_name ?? 'Thành viên'}
                       </Link>
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                       <button
                         type="button"
                         disabled={busyId === r.id}
-                        className={`${role.btnPrimary} !h-10 !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                        className={`${role.btnPrimary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                         onClick={() => void respondRequest(r.id, true)}
                       >
                         Chấp nhận
@@ -305,7 +305,7 @@ export function ConnectionsPage() {
                       <button
                         type="button"
                         disabled={busyId === r.id}
-                        className={`${role.btnSecondary} !h-10 !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                        className={`${role.btnSecondary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                         onClick={() => void respondRequest(r.id, false)}
                       >
                         Từ chối
@@ -326,15 +326,18 @@ export function ConnectionsPage() {
                 {friends.map((p) => (
                   <li
                     key={p.id}
-                    className={`${role.cardQuiet} flex flex-wrap items-center justify-between gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3`}
+                    className={`${role.cardQuiet} flex flex-col gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between`}
                   >
-                    <Link to={`/app/u/${p.id}`} className={`${role.link} font-semibold text-abnb-ink no-underline`}>
+                    <Link
+                      to={`/app/u/${p.id}`}
+                      className={`${role.link} min-w-0 font-semibold text-abnb-ink no-underline`}
+                    >
                       {p.full_name}
                     </Link>
                     <button
                       type="button"
                       disabled={busyId === `dm-${p.id}`}
-                      className={`${role.btnSecondary} !h-10 !min-h-0 !px-4 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                      className={`${role.btnSecondary} !h-10 w-full !min-h-0 !px-4 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                       onClick={() => void openDm(p.id)}
                     >
                       <MessageCircle className="mr-1.5 inline h-3.5 w-3.5" strokeWidth={2} />
@@ -355,15 +358,18 @@ export function ConnectionsPage() {
                 {following.map((p) => (
                   <li
                     key={p.id}
-                    className={`${role.cardQuiet} flex flex-wrap items-center justify-between gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3`}
+                    className={`${role.cardQuiet} flex flex-col gap-3 rounded-abnb-lg border border-abnb-hairlineSoft/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between`}
                   >
-                    <Link to={`/app/u/${p.id}`} className={`${role.link} font-semibold text-abnb-ink no-underline`}>
+                    <Link
+                      to={`/app/u/${p.id}`}
+                      className={`${role.link} min-w-0 font-semibold text-abnb-ink no-underline`}
+                    >
                       {p.full_name}
                     </Link>
                     <button
                       type="button"
                       disabled={busyId === `fol-${p.id}`}
-                      className={`${role.btnSecondary} !h-10 !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed`}
+                      className={`${role.btnSecondary} !h-10 w-full !min-h-0 !px-5 !py-0 !text-[13px] !shadow-none hover:!translate-y-0 disabled:cursor-not-allowed sm:w-auto`}
                       onClick={() => void toggleFollow(p.id, true)}
                     >
                       Bỏ theo dõi

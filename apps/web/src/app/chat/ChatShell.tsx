@@ -9,7 +9,7 @@ export function ChatShell() {
   const { threads, loading } = useChatThreads()
 
   return (
-    <div className="mx-auto flex h-[calc(100svh-5rem)] w-full max-w-5xl overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb">
+    <div className="mx-auto flex h-[calc(100dvh-3.5rem-4.25rem-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-3.5rem-4.25rem-env(safe-area-inset-bottom,0px))] w-full max-w-5xl overflow-hidden rounded-none border-0 border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-none sm:rounded-abnb-xl sm:border sm:shadow-abnb md:h-[calc(100svh-4rem)] md:max-h-[calc(100svh-4rem)]">
       {/* Sidebar */}
       <aside
         className={`w-full shrink-0 border-r border-abnb-hairlineSoft sm:w-[20rem] md:w-[22rem] ${

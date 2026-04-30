@@ -144,10 +144,10 @@ export function TreesListPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-start lg:gap-10">
+    <div className="mx-auto w-full max-w-5xl">
+      <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start lg:gap-10">
         <div className={`${role.pageHero} animate-fade-up overflow-hidden`}>
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row">
             <span className={`${role.iconTile} !h-14 !w-14`}>
               <TreePine className="h-7 w-7" strokeWidth={1.75} />
             </span>
@@ -168,7 +168,7 @@ export function TreesListPage() {
 
         <Link
           to="/app/trees/new"
-          className={`${role.btnPrimary} animate-fade-up-delay inline-flex h-[3.25rem] shrink-0 items-center justify-center gap-2 !rounded-full no-underline lg:mt-3`}
+          className={`${role.btnPrimary} animate-fade-up-delay flex h-[3.25rem] w-full shrink-0 items-center justify-center gap-2 !rounded-full no-underline lg:mt-3 lg:inline-flex lg:w-auto`}
         >
           <Plus className="h-4 w-4" />
           Tạo dòng họ
