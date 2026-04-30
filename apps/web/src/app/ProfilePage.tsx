@@ -1,5 +1,5 @@
 import { Camera, ChevronDown, Home, Loader2, LogOut, MessageCircle, Settings, Upload } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
@@ -41,6 +41,12 @@ export function ProfilePage() {
   const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null)
   const [tab, setTab] = useState<'posts' | 'photos' | 'about'>('posts')
   const [dmBusy, setDmBusy] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsMenuBox, setSettingsMenuBox] = useState<{ top: number; left: number; width: number } | null>(
+    null,
+  )
+  const settingsBtnRef = useRef<HTMLButtonElement>(null)
+  const settingsMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (paramUserId && user?.id && paramUserId === user.id) {
@@ -75,6 +81,42 @@ export function ProfilePage() {
       mounted = false
     }
   }, [profileUserId, sb])
+
+  const placeSettingsMenu = useCallback(() => {
+    const el = settingsBtnRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const margin = 8
+    const vw = window.innerWidth
+    const width = Math.min(220, vw - margin * 2)
+    let left = r.right - width
+    if (left < margin) left = margin
+    if (left + width > vw - margin) left = vw - margin - width
+    setSettingsMenuBox({ top: r.bottom + 6, left, width })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!settingsOpen || !isSelf) return
+    placeSettingsMenu()
+    window.addEventListener('resize', placeSettingsMenu)
+    window.addEventListener('scroll', placeSettingsMenu, true)
+    return () => {
+      window.removeEventListener('resize', placeSettingsMenu)
+      window.removeEventListener('scroll', placeSettingsMenu, true)
+    }
+  }, [settingsOpen, isSelf, placeSettingsMenu])
+
+  useEffect(() => {
+    if (!settingsOpen) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (settingsBtnRef.current?.contains(t)) return
+      if (settingsMenuRef.current?.contains(t)) return
+      setSettingsOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [settingsOpen])
 
   const headerTitle = profile?.full_name?.trim() || 'Thành viên GiaPhả'
   const bioLine = profile?.bio?.trim()
@@ -210,9 +252,9 @@ export function ProfilePage() {
   return (
     <div className="min-h-[100vh] bg-[#f0f2f5] pb-3 pt-1 sm:pb-16 sm:pt-2 dark:bg-abnb-canvas">
       <div className="mx-auto w-full max-w-[1016px] px-2 sm:px-4">
-        <article className="overflow-hidden rounded-b-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb sm:rounded-xl">
-          <div className="relative overflow-hidden rounded-t-xl bg-gradient-to-br from-abnb-primary/15 to-abnb-canvas">
-            <div className="relative h-[clamp(11.5rem,calc(12rem+14vw),20rem)] w-full bg-abnb-surfaceSoft sm:h-[21.5rem]">
+        <article className="rounded-b-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb sm:rounded-xl">
+          <div className="relative rounded-t-xl bg-gradient-to-br from-abnb-primary/15 to-abnb-canvas">
+            <div className="relative h-[clamp(11.5rem,calc(12rem+14vw),20rem)] w-full overflow-hidden rounded-t-xl bg-abnb-surfaceSoft sm:h-[21.5rem]">
               {coverUrl ? (
                 <img
                   src={coverUrl}
@@ -229,81 +271,89 @@ export function ProfilePage() {
                 />
               )}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.22] via-transparent to-transparent" />
+            </div>
 
-              <div className="absolute bottom-2 right-2 z-[2] flex max-w-[calc(100%-1rem)] flex-wrap items-center justify-end gap-1.5 sm:bottom-3 sm:right-3 sm:gap-2">
-                <Link
-                  to="/app/home"
-                  className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
-                >
-                  <Home className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
-                  Bản tin
-                </Link>
-                {isSelf ? (
-                  <>
-                    <details className="relative inline-block">
-                      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px] [&::-webkit-details-marker]:hidden">
-                        <Settings className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
-                        Cài đặt
-                        <ChevronDown className="h-3 w-3 opacity-70 sm:h-3.5 sm:w-3.5" strokeWidth={2} aria-hidden />
-                      </summary>
-                      <div
-                        className="absolute right-0 top-[calc(100%+6px)] z-30 min-w-[13.5rem] overflow-hidden rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-surfaceCard py-1.5 text-left shadow-abnb-lg"
-                        role="menu"
+            <div className="absolute bottom-2 right-2 z-50 flex max-w-[calc(100%-1rem)] flex-wrap items-center justify-end gap-1.5 sm:bottom-3 sm:right-3 sm:gap-2">
+              <Link
+                to="/app/home"
+                className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
+              >
+                <Home className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
+                Bản tin
+              </Link>
+              {isSelf ? (
+                <>
+                  <button
+                    ref={settingsBtnRef}
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
+                    aria-expanded={settingsOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setSettingsOpen((o) => !o)}
+                  >
+                    <Settings className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
+                    Cài đặt
+                    <ChevronDown className="h-3 w-3 opacity-70 sm:h-3.5 sm:w-3.5" strokeWidth={2} aria-hidden />
+                  </button>
+                  {settingsOpen && settingsMenuBox ? (
+                    <div
+                      ref={settingsMenuRef}
+                      className="fixed z-[260] min-w-[13.5rem] overflow-hidden rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-surfaceCard py-1.5 text-left shadow-abnb-lg"
+                      style={{
+                        top: settingsMenuBox.top,
+                        left: settingsMenuBox.left,
+                        width: settingsMenuBox.width,
+                      }}
+                      role="menu"
+                    >
+                      <Link
+                        to="/app/profile/settings/profile"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
+                        role="menuitem"
+                        onClick={() => setSettingsOpen(false)}
                       >
-                        <Link
-                          to="/app/profile/settings/profile"
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
-                          role="menuitem"
-                          onClick={(e) => {
-                            ;(e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute(
-                              'open',
-                            )
-                          }}
-                        >
-                          Chỉnh sửa thông tin
-                        </Link>
-                        <Link
-                          to="/app/profile/settings/security"
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
-                          role="menuitem"
-                          onClick={(e) => {
-                            ;(e.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute(
-                              'open',
-                            )
-                          }}
-                        >
-                          Đổi mật khẩu
-                        </Link>
-                        <div className="my-1 h-px bg-abnb-hairlineSoft/85" aria-hidden />
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-semibold text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft hover:text-abnb-error"
-                          onClick={() => void signOut()}
-                        >
-                          <LogOut className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
-                          Đăng xuất
-                        </button>
-                      </div>
-                    </details>
-                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]">
-                      <Upload className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
-                      Ảnh bìa
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        className="sr-only"
-                        disabled={coverBusy || Boolean(coverCropSrc)}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0]
-                          e.target.value = ''
-                          openCoverCropFromFile(f)
+                        Chỉnh sửa thông tin
+                      </Link>
+                      <Link
+                        to="/app/profile/settings/security"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-abnb-ink no-underline transition-colors hover:bg-abnb-surfaceSoft"
+                        role="menuitem"
+                        onClick={() => setSettingsOpen(false)}
+                      >
+                        Đổi mật khẩu
+                      </Link>
+                      <div className="my-1 h-px bg-abnb-hairlineSoft/85" aria-hidden />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] font-semibold text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft hover:text-abnb-error"
+                        onClick={() => {
+                          setSettingsOpen(false)
+                          void signOut()
                         }}
-                      />
-                    </label>
-                  </>
-                ) : null}
-              </div>
+                      >
+                        <LogOut className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
+                        Đăng xuất
+                      </button>
+                    </div>
+                  ) : null}
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]">
+                    <Upload className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
+                    Ảnh bìa
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      disabled={coverBusy || Boolean(coverCropSrc)}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        e.target.value = ''
+                        openCoverCropFromFile(f)
+                      }}
+                    />
+                  </label>
+                </>
+              ) : null}
             </div>
           </div>
 

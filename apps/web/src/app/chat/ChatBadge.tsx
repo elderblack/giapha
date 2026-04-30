@@ -18,16 +18,22 @@ export function ChatBadge() {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [unread, setUnread] = useState(0)
   const [search, setSearch] = useState('')
-  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null)
+  const [popoverBox, setPopoverBox] = useState<{ top: number; left: number; width: number } | null>(null)
   const { threads, loading } = useChatThreads()
 
   const updatePopoverPosition = useCallback(() => {
     const el = buttonRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
+    const vw = window.innerWidth
     const margin = 8
-    const right = Math.max(margin, window.innerWidth - r.right)
-    setPopoverPos({ top: r.bottom + 6, right })
+    const width = Math.min(352, vw - margin * 2)
+    // Căn phải theo nút, nhưng kéo vào trong viewport để không cắt mép trái
+    let left = r.right - width
+    if (left < margin) left = margin
+    if (left + width > vw - margin) left = vw - margin - width
+    const top = r.bottom + 6
+    setPopoverBox({ top, left, width })
   }, [])
 
   useLayoutEffect(() => {
@@ -141,10 +147,14 @@ export function ChatBadge() {
           </span>
         )}
       </button>
-      {popoverOpen && popoverPos ? (
+      {popoverOpen && popoverBox ? (
         <div
-          className="fixed z-[100] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb-lg"
-          style={{ top: popoverPos.top, right: popoverPos.right }}
+          className="fixed z-[200] flex max-h-[min(85vh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-abnb-xl border border-abnb-hairlineSoft bg-abnb-surfaceCard shadow-abnb-lg"
+          style={{
+            top: popoverBox.top,
+            left: popoverBox.left,
+            width: popoverBox.width,
+          }}
           role="dialog"
           aria-label="Tin nhắn"
         >
