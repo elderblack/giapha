@@ -89,7 +89,7 @@ export const DEVELOPMENT_PLAN: PlanPhase[] = [
     goal: 'Nhắn tin đầy đủ',
     tasks: [
       { id: 'p5-t1', label: 'Chat 1-1 realtime (text, ảnh)', shipped: true },
-      { id: 'p5-t2', label: 'Nhóm chat: tạo tay và tự động theo nhánh' },
+      { id: 'p5-t2', label: 'Nhóm chat: tạo tay và tự động theo nhánh', shipped: true },
       { id: 'p5-t3', label: 'Typing indicator, online presence', shipped: true },
       { id: 'p5-t4', label: 'Đọc/chưa đọc, badge count', shipped: true },
       { id: 'p5-t5', label: 'Push notification cho tin nhắn', shipped: true },

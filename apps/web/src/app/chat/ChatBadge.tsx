@@ -63,9 +63,9 @@ export function ChatBadge() {
     const q = search.trim().toLowerCase()
     if (!q) return threads
     return threads.filter((t) => {
-      const name = t.otherUser.full_name.toLowerCase()
+      const title = t.threadTitle.toLowerCase()
       const body = t.lastMessage?.body?.toLowerCase() ?? ''
-      return name.includes(q) || body.includes(q)
+      return title.includes(q) || body.includes(q)
     })
   }, [threads, search])
 

@@ -58,12 +58,20 @@ export function useChatThreads() {
         .select('conversation_id,user_id')
         .in('conversation_id', convIds)
 
-      const otherUserIds = new Set<string>()
-      const convToOther = new Map<string, string>()
+      const convPeerIds = new Map<string, string[]>()
+      const participantCountByConv = new Map<string, number>()
       for (const p of (allParts ?? []) as Pick<ChatParticipant, 'conversation_id' | 'user_id'>[]) {
-        if (p.user_id !== uid) {
-          otherUserIds.add(p.user_id)
-          convToOther.set(p.conversation_id, p.user_id)
+        participantCountByConv.set(p.conversation_id, (participantCountByConv.get(p.conversation_id) ?? 0) + 1)
+        if (p.user_id === uid) continue
+        const peers = convPeerIds.get(p.conversation_id) ?? []
+        peers.push(p.user_id)
+        convPeerIds.set(p.conversation_id, peers)
+      }
+
+      const otherUserIds = new Set<string>()
+      for (const peers of convPeerIds.values()) {
+        for (const pid of peers) {
+          otherUserIds.add(pid)
         }
       }
 
@@ -80,8 +88,12 @@ export function useChatThreads() {
 
       const results: ChatThreadPreview[] = []
       for (const conv of convs as ChatConversation[]) {
-        const otherId = convToOther.get(conv.id)
-        const otherProfile = otherId ? profileMap.get(otherId) : undefined
+        const isGroup = conv.kind === 'group'
+        const peerIds = convPeerIds.get(conv.id) ?? []
+        const participantCount = participantCountByConv.get(conv.id) ?? 0
+        const primaryOtherId = peerIds[0] ?? ''
+
+        const otherProfile = primaryOtherId ? profileMap.get(primaryOtherId) : undefined
 
         let lastMsg: ChatMessage | null = null
         const { data: msgs } = await sb
@@ -101,9 +113,16 @@ export function useChatThreads() {
           .gt('created_at', lastRead ?? '1970-01-01T00:00:00Z')
         const unreadCount = unreadCountRaw ?? 0
 
+        const threadTitle =
+          isGroup ? (conv.title?.trim() || 'Nhóm') : (otherProfile?.full_name ?? 'Người dùng')
+
         results.push({
           conversation: conv,
-          otherUser: otherProfile ?? { id: otherId ?? '', full_name: 'Người dùng', avatar_url: null },
+          isGroup,
+          threadTitle,
+          participantCount,
+          otherUser:
+            otherProfile ?? { id: primaryOtherId, full_name: threadTitle, avatar_url: null },
           lastMessage: lastMsg,
           unreadCount,
         })

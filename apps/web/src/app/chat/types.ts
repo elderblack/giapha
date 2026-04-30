@@ -1,6 +1,10 @@
 export type ChatConversation = {
   id: string
-  kind: 'dm'
+  kind: 'dm' | 'group'
+  title: string | null
+  family_tree_id: string | null
+  branch_root_member_id: string | null
+  created_by: string | null
   last_message_at: string | null
   created_at: string
 }
@@ -24,6 +28,11 @@ export type ChatMessage = {
 
 export type ChatThreadPreview = {
   conversation: ChatConversation
+  isGroup: boolean
+  /** DM: trùng tên hiển thị; nhóm: tiêu đề nhóm */
+  threadTitle: string
+  participantCount: number
+  /** DM: người còn lại; nhóm: placeholder không dùng cho tiêu đề */
   otherUser: { id: string; full_name: string; avatar_url: string | null }
   lastMessage: ChatMessage | null
   unreadCount: number

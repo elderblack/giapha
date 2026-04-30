@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle } from 'lucide-react'
+import { Loader2, MessageCircle, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { role } from '../../design/roles'
 import type { ChatThreadPreview } from './types'
@@ -53,24 +53,27 @@ export function ThreadList(props: {
         const rowCls = `flex w-full items-center gap-3 px-4 py-3 text-left no-underline transition-colors hover:bg-abnb-surfaceSoft ${
           isActive ? 'bg-abnb-primary/[0.06]' : ''
         }`
+        const avatarBlock = t.isGroup ? (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-abnb-primary/12 text-abnb-primary ring-2 ring-abnb-canvas">
+            <Users className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </span>
+        ) : t.otherUser.avatar_url ? (
+          <img
+            src={t.otherUser.avatar_url}
+            alt=""
+            className="h-11 w-11 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-abnb-surfaceStrong text-[15px] font-semibold text-abnb-ink">
+            {t.otherUser.full_name[0]?.toUpperCase() ?? '?'}
+          </span>
+        )
         const inner = (
           <>
-              {t.otherUser.avatar_url ? (
-                <img
-                  src={t.otherUser.avatar_url}
-                  alt=""
-                  className="h-11 w-11 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-abnb-surfaceStrong text-[15px] font-semibold text-abnb-ink">
-                  {t.otherUser.full_name[0]?.toUpperCase() ?? '?'}
-                </span>
-              )}
+            {avatarBlock}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[14px] font-semibold text-abnb-ink">
-                    {t.otherUser.full_name}
-                  </span>
+                  <span className="truncate text-[14px] font-semibold text-abnb-ink">{t.threadTitle}</span>
                   {t.lastMessage && (
                     <span className="shrink-0 text-[11px] text-abnb-muted">
                       {formatTime(t.lastMessage.created_at)}
@@ -79,6 +82,9 @@ export function ThreadList(props: {
                 </div>
                 <div className="flex items-center gap-2">
                   <p className="m-0 truncate text-[13px] text-abnb-muted">
+                    {t.isGroup ? (
+                      <span>{t.participantCount} thành viên · </span>
+                    ) : null}
                     {t.lastMessage
                       ? t.lastMessage.body
                         ? t.lastMessage.body.slice(0, 60)

@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
-import { Link2, Loader2, Pencil, Trash2, UserPlus } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Link2, Loader2, Pencil, Trash2, UserPlus, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
@@ -21,6 +21,7 @@ import { TreePageIntro } from './tree/TreeChrome'
 import { memberInitial, treeAlertErr } from './tree/treeUi'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { feedUserProfilePath } from './feed/feedProfileHref'
+import { broadcastFamilyChatThreadsReload } from './chat/chatReadSync'
 import { LunarFromSolarButton } from './tree/LunarFromSolarButton'
 
 type AccountRoleRow = {
@@ -54,6 +55,9 @@ export function TreeMembersPage() {
 
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addModalKey, setAddModalKey] = useState(0)
+  const [branchGroupBusyMemberId, setBranchGroupBusyMemberId] = useState<string | null>(null)
+  const [branchGroupErr, setBranchGroupErr] = useState<string | null>(null)
+  const navigate = useNavigate()
   const [memberRequests, setMemberRequests] = useState<MemberRequestRow[] | null>(null)
   const [memberReqErr, setMemberReqErr] = useState<string | null>(null)
   const [reviewBusyId, setReviewBusyId] = useState<string | null>(null)
@@ -169,6 +173,40 @@ export function TreeMembersPage() {
     setEditingId(null)
     setEditErr(null)
   }, [])
+
+  const openBranchGroupChat = useCallback(
+    async (branchRootMemberId: string) => {
+      if (!sb || !treeId) return
+      setBranchGroupBusyMemberId(branchRootMemberId)
+      setBranchGroupErr(null)
+      const { data, error } = await sb.rpc('family_chat_get_or_create_branch_group', {
+        p_family_tree_id: treeId,
+        p_branch_root_member_id: branchRootMemberId,
+      })
+      setBranchGroupBusyMemberId(null)
+      if (error) {
+        const raw = error.message ?? ''
+        const lc = raw.toLowerCase()
+        if (lc.includes('branch_group_too_few')) {
+          setBranchGroupErr(
+            'Cần ít nhất hai tài khoản đã liên kết trong nhánh (từ thành viên gốc trở xuống) để có nhóm chat nhánh.',
+          )
+        } else if (lc.includes('branch_group_not_in_subtree')) {
+          setBranchGroupErr(
+            'Bạn phải có tài khoản gắn với một người trong nhánh đó (gốc + hậu duệ).',
+          )
+        } else if (lc.includes('no_tree_access')) {
+          setBranchGroupErr('Bạn không có quyền trên cây gia phả này.')
+        } else {
+          setBranchGroupErr(raw || 'Không mở được nhóm nhánh.')
+        }
+        return
+      }
+      broadcastFamilyChatThreadsReload()
+      void navigate(`/app/chat/${String(data)}`)
+    },
+    [navigate, sb, treeId],
+  )
 
   const loadMemberRequests = useCallback(async () => {
     if (!sb || !treeId || !hasTreeRole) return
@@ -459,6 +497,11 @@ export function TreeMembersPage() {
           {membersErr}
         </p>
       ) : null}
+      {branchGroupErr ? (
+        <p className={treeAlertErr} role="alert">
+          {branchGroupErr}
+        </p>
+      ) : null}
 
       {members === null ? (
         <div className="flex justify-center py-12">
@@ -566,6 +609,27 @@ export function TreeMembersPage() {
                           Đã liên kết tài khoản
                           {m.linked_profile_id === user?.id ? ' (bạn)' : ''}
                         </p>
+                      ) : null}
+                      {hasTreeRole && !isEditing ? (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            disabled={branchGroupBusyMemberId !== null}
+                            onClick={() => void openBranchGroupChat(m.id)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-abnb-primary/35 bg-abnb-primary/8 px-3 py-1.5 text-[13px] font-semibold text-abnb-primary transition-colors hover:bg-abnb-primary/14 disabled:opacity-60"
+                            title="Nhóm chat chứa mọi tài khoản đã gắn trong nhánh từ thành viên này trở xuống"
+                          >
+                            {branchGroupBusyMemberId === m.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            )}
+                            Nhóm chat nhánh
+                          </button>
+                          <span className={`${role.bodySm} mt-1 block text-abnb-muted`}>
+                            Gồm người đã liên kết TK trong nhánh của “{m.full_name}”.
+                          </span>
+                        </div>
                       ) : null}
                       {user?.id && canUseClaim && !isEditing ? (
                         <div className="mt-3 flex flex-wrap gap-2">

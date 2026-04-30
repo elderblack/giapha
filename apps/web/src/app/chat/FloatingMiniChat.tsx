@@ -21,6 +21,17 @@ export function FloatingMiniChat() {
   const loadPeer = useCallback(
     async (conversationId: string) => {
       if (!sb || !uid) return
+      const { data: conv } = await sb
+        .from('family_chat_conversations')
+        .select('kind,title')
+        .eq('id', conversationId)
+        .single()
+      if ((conv as { kind?: string } | null)?.kind === 'group') {
+        const t = (conv as { title?: string | null }).title?.trim()
+        setOtherName(t || 'Nhóm')
+        setOtherAvatar(null)
+        return
+      }
       const { data: parts } = await sb
         .from('family_chat_participants')
         .select('user_id')

@@ -1,12 +1,12 @@
-import { ArrowLeft, Loader2, Maximize2, Minus, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Maximize2, Minus, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
+import { markFamilyChatConversationRead } from './chatReadSync'
 import { MessageComposer } from './MessageComposer'
 import { MessageList } from './MessageList'
 import type { ChatParticipant } from './types'
-import { markFamilyChatConversationRead } from './chatReadSync'
 import { useChatMessages } from './useChatMessages'
 import { useChatPresence } from './useChatPresence'
 
@@ -26,26 +26,65 @@ export function ChatThreadView(props: {
 
   const { messages, loading, sendText, sendImage, bottomRef } = useChatMessages(conversationId)
   const { otherPresence, sendTyping } = useChatPresence(conversationId)
-  const [otherUser, setOtherUser] = useState<{ full_name: string; avatar_url: string | null } | null>(null)
+
+  const [convMeta, setConvMeta] = useState<{ kind: 'dm' | 'group'; title: string | null } | null>(
+    null,
+  )
+  const [participantCount, setParticipantCount] = useState(0)
+  const [otherUser, setOtherUser] = useState<{ full_name: string; avatar_url: string | null } | null>(
+    null,
+  )
+  const [senderNameByUserId, setSenderNameByUserId] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!sb || !uid || !conversationId) return
     let mounted = true
     void (async () => {
+      const { data: convRow } = await sb
+        .from('family_chat_conversations')
+        .select('kind,title')
+        .eq('id', conversationId)
+        .single()
+
+      if (!mounted) return
+
+      const kindRaw = (convRow as { kind?: string } | null)?.kind
+      const kind: 'dm' | 'group' = kindRaw === 'group' ? 'group' : 'dm'
+      const title = (convRow as { title?: string | null } | null)?.title ?? null
+      setConvMeta({ kind, title })
+      setOtherUser(null)
+      setSenderNameByUserId({})
+
       const { data: parts } = await sb
         .from('family_chat_participants')
         .select('user_id')
         .eq('conversation_id', conversationId)
-      const otherId = ((parts ?? []) as Pick<ChatParticipant, 'user_id'>[]).find(
-        (p) => p.user_id !== uid,
-      )?.user_id
-      if (!otherId || !mounted) return
+      const userIds = ((parts ?? []) as Pick<ChatParticipant, 'user_id'>[]).map((p) => p.user_id)
+      if (!mounted) return
+      setParticipantCount(userIds.length)
+
+      if (kind === 'group') {
+        if (userIds.length === 0) return
+        const { data: profs } = await sb.from('profiles').select('id,full_name').in('id', userIds)
+        if (!mounted) return
+        const map: Record<string, string> = {}
+        for (const p of (profs ?? []) as { id: string; full_name: string }[]) {
+          map[p.id] = p.full_name
+        }
+        setSenderNameByUserId(map)
+        return
+      }
+
+      const otherId = userIds.find((id) => id !== uid)
+      if (!otherId) return
       const { data: prof } = await sb
         .from('profiles')
         .select('full_name,avatar_url')
         .eq('id', otherId)
         .single()
-      if (mounted && prof) setOtherUser(prof as { full_name: string; avatar_url: string | null })
+      if (mounted && prof) {
+        setOtherUser(prof as { full_name: string; avatar_url: string | null })
+      }
     })()
     return () => {
       mounted = false
@@ -57,17 +96,29 @@ export function ChatThreadView(props: {
     void markFamilyChatConversationRead(sb, uid, conversationId)
   }, [sb, uid, conversationId, messages.length, loading])
 
-  const avatar =
-    otherUser?.avatar_url ? (
-      <img src={otherUser.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
-    ) : (
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-abnb-surfaceStrong text-[13px] font-semibold text-abnb-ink">
-        {otherUser?.full_name[0]?.toUpperCase() ?? '?'}
-      </span>
-    )
+  const isGroup = convMeta?.kind === 'group'
+  const groupTitle = (convMeta?.title?.trim() || 'Nhóm') as string
+  const headerLoading = !convMeta || (!isGroup && !otherUser)
+
+  const avatar = isGroup ? (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-abnb-primary/12 text-abnb-primary ring-2 ring-abnb-canvas">
+      <Users className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
+    </span>
+  ) : otherUser?.avatar_url ? (
+    <img src={otherUser.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+  ) : (
+    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-abnb-surfaceStrong text-[13px] font-semibold text-abnb-ink">
+      {otherUser?.full_name[0]?.toUpperCase() ?? '?'}
+    </span>
+  )
 
   const titleBlock =
-    otherUser != null ? (
+    isGroup && convMeta ? (
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-[15px] font-semibold leading-tight text-abnb-ink">{groupTitle}</span>
+        <span className="truncate text-[11px] text-abnb-muted">{participantCount} thành viên · Nhóm</span>
+      </div>
+    ) : otherUser != null ? (
       <div className="flex min-w-0 flex-col">
         <span className="truncate text-[15px] font-semibold leading-tight text-abnb-ink">{otherUser.full_name}</span>
         {variant === 'page' && otherPresence.isOnline && (
@@ -90,20 +141,26 @@ export function ChatThreadView(props: {
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={2} />
             </Link>
-            {otherUser ? (
+            {headerLoading ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-abnb-muted" />
+            ) : (
               <div className="flex min-w-0 items-center gap-2.5">
                 {avatar}
                 {titleBlock}
               </div>
-            ) : (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-abnb-muted" />
             )}
           </>
         ) : (
           <>
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              {otherUser ? avatar : <Loader2 className="h-4 w-4 shrink-0 animate-spin text-abnb-muted" />}
-              {otherUser ? titleBlock : null}
+              {headerLoading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-abnb-muted" />
+              ) : (
+                <>
+                  {avatar}
+                  {titleBlock}
+                </>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
               {props.onExpand ? (
@@ -140,12 +197,17 @@ export function ChatThreadView(props: {
           </>
         )}
       </header>
-      <MessageList messages={messages} loading={loading} bottomRef={bottomRef} />
-      {otherPresence.isTyping && (
+      <MessageList
+        messages={messages}
+        loading={loading}
+        bottomRef={bottomRef}
+        senderNameByUserId={isGroup ? senderNameByUserId : undefined}
+      />
+      {!isGroup && otherPresence.isTyping ? (
         <div className="shrink-0 px-3 py-1 sm:px-4">
           <span className="text-[12px] italic text-abnb-muted">Đang nhập…</span>
         </div>
-      )}
+      ) : null}
       <MessageComposer
         conversationId={conversationId}
         onSendText={sendText}
