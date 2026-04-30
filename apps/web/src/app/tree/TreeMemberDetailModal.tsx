@@ -34,17 +34,24 @@ export function TreeMemberDetailModal({ open, onClose, titleId, children }: Prop
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[75] flex items-end justify-center bg-black/45 p-0 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:items-center sm:p-4"
+      className="fixed inset-0 z-[75] flex flex-col justify-end pt-[env(safe-area-inset-top)] sm:justify-center sm:p-4"
       role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
     >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/45"
+        aria-label="Đóng hộp thoại"
+        onClick={onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[min(88dvh,720px)] w-full max-w-lg overflow-y-auto overscroll-y-contain rounded-t-[1.25rem] bg-abnb-surfaceCard shadow-2xl ring-1 ring-black/10 [-webkit-overflow-scrolling:touch] sm:max-h-[min(90vh,720px)] sm:rounded-abnb-xl"
+        className="relative z-10 mb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] min-h-0 w-full max-w-lg self-center overflow-y-auto overscroll-y-contain rounded-t-[1.25rem] bg-abnb-surfaceCard shadow-2xl ring-1 ring-black/10 [-webkit-overflow-scrolling:touch] [touch-action:pan-y] sm:mb-0 sm:rounded-abnb-xl"
+        style={{
+          maxHeight:
+            'min(85dvh, 720px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem))',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-end border-b border-abnb-hairlineSoft/80 bg-abnb-surfaceCard px-3 py-2">

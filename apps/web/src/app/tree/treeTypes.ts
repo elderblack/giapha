@@ -213,6 +213,41 @@ export function formatDateVi(iso: string | null): string {
   return `${d}/${mo}/${y}`
 }
 
+/** Parse YYYY-MM-DD theo lịch địa phương (tránh lệch ngày theo UTC). */
+export function parseLocalYmd(iso: string | null): Date | null {
+  if (!iso) return null
+  const t = iso.slice(0, 10)
+  const [ys, ms, ds] = t.split('-')
+  const y = Number(ys)
+  const m = Number(ms)
+  const d = Number(ds)
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  const dt = new Date(y, m - 1, d, 12, 0, 0, 0)
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null
+  return dt
+}
+
+/** Số tuổi đủ (đã qua sinh nhật trong năm của `ref`). */
+export function completedYearsBetween(birth: Date, ref: Date): number {
+  let years = ref.getFullYear() - birth.getFullYear()
+  const monthDiff = ref.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) years--
+  return Math.max(0, years)
+}
+
+/**
+ * Tuổi hiện tại nếu còn sống, tuổi lúc mất nếu có `death_date`; không có ngày sinh → "—".
+ */
+export function formatMemberAgeVi(member: Pick<MemberRow, 'birth_date' | 'death_date'>): string {
+  const birth = parseLocalYmd(member.birth_date)
+  if (!birth) return '—'
+  const death = parseLocalYmd(member.death_date)
+  const end = death ?? new Date()
+  if (death && end.getTime() < birth.getTime()) return '—'
+  const years = completedYearsBetween(birth, end)
+  return `${years} tuổi`
+}
+
 export function dateInputValue(iso: string | null): string {
   if (!iso) return ''
   return iso.slice(0, 10)

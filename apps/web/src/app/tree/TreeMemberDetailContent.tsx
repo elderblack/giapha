@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { List, User } from 'lucide-react'
 import { role } from '../../design/roles'
 import type { MemberRow } from './treeTypes'
-import { formatDateVi, genderLabel, parentLabel, spouseLabel } from './treeTypes'
+import { formatDateVi, formatMemberAgeVi, genderLabel, parentLabel, spouseLabel } from './treeTypes'
 import { memberInitial } from './treeUi'
 
 export function MemberDetailSummaryHeader({
@@ -77,7 +77,9 @@ export function MemberDetailFields({
   variant?: 'modal' | 'aside'
 }) {
   const shell =
-    variant === 'aside' ? 'space-y-4' : 'space-y-4 px-4 pb-6 pt-2 sm:px-5'
+    variant === 'aside'
+      ? 'space-y-4'
+      : 'space-y-4 px-4 pb-[max(2.75rem,calc(env(safe-area-inset-bottom,0px)+2rem))] pt-2 sm:px-5'
   return (
     <div className={shell}>
       <dl className="space-y-3 text-[13px]">
@@ -92,9 +94,15 @@ export function MemberDetailFields({
           <dd className="font-medium text-abnb-ink">{formatDateVi(selected.birth_date)}</dd>
         </div>
         <div className="flex justify-between gap-3 border-b border-abnb-hairlineSoft/70 pb-3">
-          <dt className="text-abnb-muted">Mất</dt>
-          <dd className="font-medium text-abnb-ink">{formatDateVi(selected.death_date)}</dd>
+          <dt className="text-abnb-muted">Tuổi</dt>
+          <dd className="text-right font-medium text-abnb-ink">{formatMemberAgeVi(selected)}</dd>
         </div>
+        {selected.death_date ? (
+          <div className="flex justify-between gap-3 border-b border-abnb-hairlineSoft/70 pb-3">
+            <dt className="text-abnb-muted">Mất</dt>
+            <dd className="font-medium text-abnb-ink">{formatDateVi(selected.death_date)}</dd>
+          </div>
+        ) : null}
         <div className="border-b border-abnb-hairlineSoft/70 pb-3">
           <dt className="text-abnb-muted">Cha / mẹ</dt>
           <dd className="mt-1.5 font-medium leading-snug text-abnb-ink">
