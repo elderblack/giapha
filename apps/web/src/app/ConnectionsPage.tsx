@@ -386,7 +386,7 @@ export function ConnectionsPage() {
               <Link to="/app/home" className={`${role.link} font-semibold`}>
                 Trang nhà
               </Link>{' '}
-              (/app/home).
+              (menu trên cùng).
             </p>
           ) : null}
         </div>

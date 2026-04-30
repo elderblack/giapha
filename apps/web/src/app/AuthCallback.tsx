@@ -7,7 +7,7 @@ export function AuthCallback() {
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
   const [params] = useSearchParams()
-  const next = params.get('next') ?? '/app/home'
+  const next = params.get('next') ?? '/app'
 
   useEffect(() => {
     const run = async () => {
@@ -69,5 +69,5 @@ export function AuthCallback() {
     return <Navigate to="/app/login" replace />
   }
 
-  return <Navigate to={next.startsWith('/app') ? next : '/app/home'} replace />
+  return <Navigate to={next.startsWith('/app') ? next : '/app'} replace />
 }

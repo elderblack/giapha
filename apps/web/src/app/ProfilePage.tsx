@@ -248,7 +248,7 @@ export function ProfilePage() {
                   className="inline-flex items-center gap-1.5 rounded-abnb-md bg-white px-2.5 py-1.5 text-[12px] font-semibold text-abnb-ink shadow-md ring-1 ring-black/10 transition-colors hover:bg-[#f0f2f5] sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
                 >
                   <Home className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" strokeWidth={2} />
-                  Trang nhà
+                  Bản tin
                 </Link>
                 {isSelf ? (
                   <>

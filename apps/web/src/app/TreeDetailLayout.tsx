@@ -56,7 +56,7 @@ function TreeDetailShell() {
         <div className="relative px-5 pb-6 pt-5 sm:px-8 sm:pb-7 sm:pt-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <p className={role.kicker}>Không gian dòng họ</p>
+              <p className={role.kicker}>Không gian dòng họ · Trung tâm ứng dụng</p>
               <h1 className={`${role.headingSection} mt-1 max-w-[20ch] text-balance sm:max-w-none`}>{tree.name}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <TreeRoleChip variant={roleVariant} />

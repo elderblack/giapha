@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen, Network, Users } from 'lucide-react'
 import { role } from '../design/roles'
+import { AppProductTour } from '../AppProductTour'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { TreePageIntro } from './tree/TreeChrome'
 
@@ -43,9 +44,11 @@ export function TreeOverviewPage() {
 
   return (
     <div className="animate-fade-up space-y-10">
+      <AppProductTour />
+
       <TreePageIntro kicker="Tổng quan" title="Giới thiệu dòng họ">
-        Lưu trữ gốc tích, kết nối người trong một không gian rõ ràng — bản tin trên GiaPhả nằm tại Trang nhà
-        (menu trên cùng); các tab bên dưới là phả hệ và thành viên.
+        Lưu trữ gốc tích, kết nối người trong một không gian rõ ràng — <strong>bản tin</strong> nằm tại mục{' '}
+        <strong>Trang nhà</strong> trên thanh điều hướng; các tab bên dưới là phả hệ và thành viên.
       </TreePageIntro>
 
       <div className="grid gap-3 sm:grid-cols-3">

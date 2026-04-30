@@ -14,7 +14,6 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { getSupabase } from '../lib/supabase'
 import { role } from '../design/roles'
-import { AppProductTour } from './AppProductTour'
 import { TreeFeedPage } from './feed/TreeFeedPage'
 import { TreeWorkspaceProvider } from './tree/TreeWorkspaceProvider'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
@@ -53,8 +52,6 @@ export function AppHome() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <AppProductTour />
-
       {homeTreeId === undefined ? (
         <div className={`${role.cardQuiet} mt-8 flex items-center justify-center gap-3 rounded-abnb-xl border border-abnb-hairlineSoft/85 py-16`}>
           <Loader2 className="h-8 w-8 animate-spin text-abnb-primary" />
@@ -146,7 +143,7 @@ function HomeSocialLayout({ displayName }: { displayName: string | null }) {
           }}
         >
           <div className="relative px-5 py-6 sm:px-10 sm:py-10">
-            <p className={role.kicker}>Mạng gia tộc · Trang nhà</p>
+            <p className={role.kicker}>Bản tin dòng họ · Trang nhà</p>
             <h1 className={`${role.headingSection} mt-2 max-w-2xl text-[1.65rem] leading-tight sm:text-[1.85rem]`}>
               Xin chào, <span className="text-abnb-ink">{greeting}</span>
             </h1>

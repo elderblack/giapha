@@ -51,7 +51,7 @@ export function ClaimInvitePage() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-6 px-6">
         <p className={`${role.bodyMd} text-center text-abnb-muted`}>Thiếu liên kết hợp lệ trong URL.</p>
-        <Link to="/app/home" className={`${role.btnPrimary} no-underline !rounded-full`}>
+        <Link to="/app" className={`${role.btnPrimary} no-underline !rounded-full`}>
           Về GiaPhả
         </Link>
       </div>
@@ -85,13 +85,13 @@ export function ClaimInvitePage() {
         <p className="max-w-md text-center text-sm font-medium text-abnb-error" role="alert">
           {msg ?? 'Không liên kết được.'}
         </p>
-        <Link to="/app/home" className={`${role.btnSecondary} no-underline !rounded-full`}>
+        <Link to="/app" className={`${role.btnSecondary} no-underline !rounded-full`}>
           Về trang chủ
         </Link>
       </div>
     )
   }
 
-  const to = treeId ? `/app/trees/${treeId}/chart` : '/app/home'
+  const to = treeId ? `/app/trees/${treeId}/chart` : '/app'
   return <Navigate to={to} replace />
 }

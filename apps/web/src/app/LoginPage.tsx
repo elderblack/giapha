@@ -14,7 +14,7 @@ function authCallbackRedirectUrl(postAuthPath: string) {
   const safe =
     postAuthPath.startsWith('/app') && !postAuthPath.startsWith('//')
       ? postAuthPath
-      : '/app/home'
+      : '/app'
   return `${callback}?next=${encodeURIComponent(safe)}`
 }
 
@@ -37,7 +37,7 @@ type EmailAuthMode = 'password' | 'register' | 'magic'
 export function LoginPage() {
   const { session, loading } = useAuth()
   const loc = useLocation() as { state?: { from?: string } }
-  const from = loc.state?.from ?? '/app/home'
+  const from = loc.state?.from ?? '/app'
   const [tab, setTab] = useState<AuthTab>('email')
   const [emailMode, setEmailMode] = useState<EmailAuthMode>('password')
   const [email, setEmail] = useState('')
@@ -76,7 +76,7 @@ export function LoginPage() {
   }
 
   if (session) {
-    return <Navigate to={from.startsWith('/app') ? from : '/app/home'} replace />
+    return <Navigate to={from.startsWith('/app') ? from : '/app'} replace />
   }
 
   const sb = getSupabase()!

@@ -44,8 +44,8 @@ export function AppProductTour() {
       </h2>
       <ol className={`${role.bodySm} mt-4 list-decimal space-y-2 pl-5 text-abnb-body`}>
         <li>
-          Vào <strong>Dòng họ</strong> để tạo hoặc mở phả — xem <strong>Tổng quan</strong>, <strong>Phả hệ</strong>,{' '}
-          <strong>Thành viên</strong>.
+          Sau đăng nhập bạn vào thẳng <strong>Tổng quan dòng họ</strong> — từ đó mở <strong>Phả hệ</strong>,{' '}
+          <strong>Thành viên</strong> hoặc mục <strong>Trang nhà</strong> để xem bản tin.
         </li>
         <li>Thêm người, gắn cha mẹ / vợ chồng; dùng sơ đồ để xem cả nhánh.</li>
         <li>

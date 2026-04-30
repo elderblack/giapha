@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { AppEntryRedirect } from './app/AppEntryRedirect'
 import { AppHome } from './app/AppHome'
 import { AppShell } from './app/AppShell'
 import { AuthCallback } from './app/AuthCallback'
@@ -48,7 +49,7 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="home" replace />} />
+        <Route index element={<AppEntryRedirect />} />
         <Route path="home" element={<AppHome />} />
         <Route path="profile/settings" element={<ProfileSettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />

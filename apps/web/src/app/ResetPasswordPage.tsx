@@ -59,7 +59,7 @@ export function ResetPasswordPage() {
   }
 
   if (done) {
-    return <Navigate to="/app/home" replace />
+    return <Navigate to="/app" replace />
   }
 
   const sb = getSupabase()!

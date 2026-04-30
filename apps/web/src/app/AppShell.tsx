@@ -25,7 +25,7 @@ export function AppShell() {
       <header className={`${role.topNav} sticky top-0 z-40`}>
         <div className="lp-container flex h-14 max-w-abnb items-center justify-between gap-2 sm:h-16 sm:gap-4">
           <Link
-            to="/app/home"
+            to="/app"
             className="flex min-w-0 shrink-0 items-center gap-2 text-abnb-ink no-underline transition-opacity hover:opacity-90 sm:gap-2.5"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-abnb-md bg-gradient-to-br from-abnb-primary/[0.15] to-abnb-luxe/[0.08] text-abnb-primary shadow-abnb-inner ring-1 ring-abnb-hairlineSoft sm:h-10 sm:w-10">
@@ -37,11 +37,11 @@ export function AppShell() {
             className={`${role.appNavTrack} mx-1 hidden min-w-0 flex-1 justify-center md:mx-2 md:flex md:flex-initial`}
             aria-label="Ứng dụng"
           >
-            <NavLink to="/app/home" className={navCls}>
-              Trang nhà
-            </NavLink>
             <NavLink to="/app/trees" className={navCls}>
               Dòng họ
+            </NavLink>
+            <NavLink to="/app/home" className={navCls}>
+              Trang nhà
             </NavLink>
             <NavLink to="/app/connections" className={navCls}>
               <span className="inline-flex items-center gap-1.5">
@@ -117,13 +117,13 @@ export function AppShell() {
         aria-label="Điều hướng chính"
       >
         <div className="mx-auto flex max-w-abnb items-stretch justify-between gap-0.5 px-1 pt-1">
-          <NavLink to="/app/home" className={bottomNavCls} end>
-            <Home className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
-            <span>Trang nhà</span>
-          </NavLink>
           <NavLink to="/app/trees" className={bottomNavCls}>
             <TreePine className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
             <span>Dòng họ</span>
+          </NavLink>
+          <NavLink to="/app/home" className={bottomNavCls} end>
+            <Home className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />
+            <span>Trang nhà</span>
           </NavLink>
           <NavLink to="/app/connections" className={bottomNavCls}>
             <Users className="h-[1.35rem] w-[1.35rem] shrink-0 opacity-95" strokeWidth={2} aria-hidden />

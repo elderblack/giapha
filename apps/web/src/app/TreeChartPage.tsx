@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { List, Move, Pointer, User, UserPlus } from 'lucide-react'
+import { List, Move, Pointer, User, UserPlus, X } from 'lucide-react'
 import { FamilyTreeChart } from '../components/FamilyTreeChart'
 import { FamilyTreeHierarchyChart } from '../components/FamilyTreeHierarchyChart'
 import { role } from '../design/roles'
@@ -51,7 +51,7 @@ export function TreeChartPage() {
   return (
     <div className="animate-fade-up space-y-8">
       <TreePageIntro kicker="Phả hệ" title="Sơ đồ quan hệ">
-        Dùng cử chỉ hoặc chuột để kéo khung vẽ; chọn một người để xem tóm tắt bên cạnh (hoặc dưới trên điện thoại).
+        Dùng cử chỉ hoặc chuột để kéo khung vẽ; chọn một người — trên điện thoại thông tin hiện ngay phía trên sơ đồ. Bấm ✕ để bỏ chọn và xem lại cây.
       </TreePageIntro>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -104,7 +104,7 @@ export function TreeChartPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(17rem,280px)] lg:items-start">
-        <section className="min-w-0">
+        <section className={`min-w-0 scroll-mt-4 ${selectedId ? 'max-lg:order-2' : ''}`}>
           <div
             className={`${role.card} overflow-hidden !p-0 shadow-abnb-lg ring-1 ring-abnb-hairlineSoft/60`}
             style={{ minHeight: members === null ? 200 : 420 }}
@@ -154,9 +154,9 @@ export function TreeChartPage() {
         </section>
 
         <aside
-          className={`${role.card} !p-0 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto`}
+          className={`${role.card} !p-0 scroll-mt-20 max-lg:shadow-abnb-lg lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:shadow-none ${selectedId ? 'max-lg:order-1' : ''}`}
         >
-          <div className="border-b border-abnb-hairlineSoft/80 bg-abnb-surfaceSoft/40 px-5 py-4">
+          <div className="border-b border-abnb-hairlineSoft/80 bg-abnb-surfaceSoft/40 px-4 py-3 sm:px-5 sm:py-4">
             <div className="flex items-start gap-3">
               {selected ? (
                 selected.avatar_url ? (
@@ -191,6 +191,16 @@ export function TreeChartPage() {
                   </div>
                 )}
               </div>
+              {selected ? (
+                <button
+                  type="button"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-abnb-hairlineSoft bg-abnb-canvas text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft hover:text-abnb-ink lg:hidden"
+                  aria-label="Bỏ chọn, xem lại cây phía trên"
+                  onClick={() => setSelectedId(null)}
+                >
+                  <X className="h-[18px] w-[18px]" strokeWidth={2} />
+                </button>
+              ) : null}
             </div>
           </div>
 
