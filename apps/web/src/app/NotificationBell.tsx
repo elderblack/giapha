@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { getSupabase } from '../lib/supabase'
 import { role } from '../design/roles'
+import {
+  collectProfileIdsFromNotificationRows,
+  notificationDisplay,
+  webNotificationNavigateTo,
+} from '../../../../shared/appNotifications'
 
 export type AppNotificationRow = {
   id: string
@@ -13,34 +19,14 @@ export type AppNotificationRow = {
   created_at: string
 }
 
-function payloadSummary(kind: string, _payload: Record<string, unknown>): string {
-  switch (kind) {
-    case 'post_created':
-      return 'Bài mới trong dòng họ của bạn.'
-    case 'post_reacted':
-      return 'Có người phản hồi bài viết của bạn.'
-    case 'comment_on_post':
-    case 'comment_on_post_reply':
-      return 'Bình luận mới trên bài viết.'
-    case 'reply_to_comment':
-      return 'Có người trả lời bình luận của bạn.'
-    case 'friend_request':
-      return 'Lời mời kết bạn mới.'
-    case 'friend_request_accepted':
-      return 'Lời mời kết bạn đã được chấp nhận.'
-    case 'chat_message':
-      return 'Bạn có tin nhắn mới.'
-    default:
-      return 'Thông báo mới.'
-  }
-}
-
 export function NotificationBell() {
   const { user } = useAuth()
   const sb = getSupabase()
+  const navigate = useNavigate()
   const uid = user?.id
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<AppNotificationRow[]>([])
+  const [nameById, setNameById] = useState<Record<string, string>>({})
   const [unread, setUnread] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -54,6 +40,17 @@ export function NotificationBell() {
       .limit(40)
     if (error || !data) return
     const list = data as AppNotificationRow[]
+    const ids = collectProfileIdsFromNotificationRows(list)
+    let names: Record<string, string> = {}
+    if (ids.length) {
+      const { data: profs } = await sb.from('profiles').select('id, full_name').in('id', ids)
+      if (profs) {
+        names = Object.fromEntries(
+          (profs as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name?.trim() ?? '']),
+        )
+      }
+    }
+    setNameById(names)
     setRows(list)
     setUnread(list.filter((r) => !r.read_at).length)
   }, [sb, uid])
@@ -100,12 +97,14 @@ export function NotificationBell() {
   }
 
   async function openPanel() {
-    const next = !open
-    setOpen(next)
-    if (next && rows.length) {
-      const unreadIds = rows.filter((r) => !r.read_at).map((r) => r.id)
-      if (unreadIds.length) await markRead(unreadIds)
-    }
+    setOpen((o) => !o)
+  }
+
+  async function onRowActivate(row: AppNotificationRow) {
+    if (row.read_at == null) await markRead([row.id])
+    setOpen(false)
+    const target = webNotificationNavigateTo(row)
+    if (target) navigate(target)
   }
 
   if (!sb || !uid) return null
@@ -138,15 +137,29 @@ export function NotificationBell() {
             {rows.length === 0 ? (
               <li className={`${role.bodySm} px-3 py-6 text-center text-abnb-muted`}>Chưa có thông báo.</li>
             ) : (
-              rows.map((r) => (
-                <li
-                  key={r.id}
-                  className={`rounded-abnb-lg px-3 py-2 ${r.read_at ? 'opacity-85' : 'bg-abnb-primary/[0.06]'}`}
-                >
-                  <p className="text-[13px] font-medium leading-snug text-abnb-ink">{payloadSummary(r.kind, r.payload)}</p>
-                  <p className={`${role.statLabel} mt-0.5 normal-case text-abnb-muted`}>{formatDt(r.created_at)}</p>
-                </li>
-              ))
+              rows.map((r) => {
+                const { title, detail } = notificationDisplay(r.kind, r.payload, nameById)
+                const target = webNotificationNavigateTo(r)
+                return (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => void onRowActivate(r)}
+                      className={`w-full rounded-abnb-lg px-3 py-2.5 text-left transition-colors ${
+                        r.read_at ? 'opacity-90 hover:bg-abnb-surfaceSoft/80' : 'bg-abnb-primary/[0.06] hover:bg-abnb-primary/[0.1]'
+                      }`}
+                    >
+                      <p className="text-[13px] font-semibold leading-snug text-abnb-ink">{title}</p>
+                      {detail ? (
+                        <p className={`${role.statLabel} mt-0.5 normal-case ${target ? 'text-abnb-primary' : 'text-abnb-muted'}`}>
+                          {target ? detail : 'Không thể mở nhanh — mục đã lưu trong danh sách.'}
+                        </p>
+                      ) : null}
+                      <p className={`${role.statLabel} mt-1 normal-case text-abnb-muted`}>{formatDt(r.created_at)}</p>
+                    </button>
+                  </li>
+                )
+              })
             )}
           </ul>
         </div>

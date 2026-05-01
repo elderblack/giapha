@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { role } from '../../design/roles'
 import { getSupabase } from '../../lib/supabase'
+import { broadcastFamilyChatThreadsReload } from './chatReadSync'
 import { ChatPickMemberListSkeleton } from './ChatSkeletons'
 
 type ProfileRow = { id: string; full_name: string; avatar_url: string | null }

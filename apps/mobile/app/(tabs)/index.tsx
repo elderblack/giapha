@@ -1,7 +1,8 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
 import type { ImagePickerAsset } from 'expo-image-picker'
-import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useRouter } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -15,7 +16,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useIsFocused } from '@react-navigation/native'
 
 import { FeedComposeModal } from '@/components/feed/FeedComposeModal'
 import { FeedPostCardMobile, type FeedCardViewportPayload } from '@/components/feed/FeedPostCardMobile'
@@ -39,6 +40,7 @@ const FB_STORIES = [{ id: '1', label: 'Kỷ niệm họ' }, { id: '2', label: 'G
 export default function HomeScreen() {
   const p = usePalette()
   const insets = useSafeAreaInsets()
+  const isFocused = useIsFocused()
   const router = useRouter()
   const { user } = useAuth()
   const sb = getSupabase()
@@ -294,23 +296,28 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: p.canvas, paddingTop: insets.top }]} edges={['left', 'right']}>
-      {/* Thanh đầu phong cách FB: logo, ô tìm, biểu tượng nhanh */}
-      <View style={[styles.fbHeader, { backgroundColor: p.surfaceElevated, borderBottomColor: p.border }]}>
-        <LinearGradient colors={[p.accent, '#DD2476']} style={styles.brandMark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <FontAwesome name="pagelines" color="#FFF" size={22} />
-        </LinearGradient>
-        <View style={[styles.fbSearchFake, { backgroundColor: p.canvasMuted }]}>
-          <FontAwesome name="search" size={15} color={p.muted} />
-          <Text style={[styles.fbSearchLbl, { color: p.muted, fontFamily: Font.medium }]}>Tìm trên Gia Phả…</Text>
-        </View>
-        <View style={styles.fbIconRow}>
-          <Pressable accessibilityLabel="Tin nhắn" hitSlop={8} style={styles.roundIconBtn} onPress={() => router.push('/chat')}>
-            <FontAwesome name="comment-o" size={21} color={p.accent} />
-          </Pressable>
-          <Pressable accessibilityLabel="Thông báo" hitSlop={8} style={styles.roundIconBtn} onPress={() => router.push('/notifications')}>
-            <FontAwesome name="bell-o" size={21} color={p.accent} />
-          </Pressable>
+    <SafeAreaView style={[styles.safe, { backgroundColor: p.canvas }]} edges={['left', 'right']}>
+      {isFocused ? (
+        <StatusBar style={p.scheme === 'dark' ? 'light' : 'dark'} backgroundColor={p.surfaceElevated} />
+      ) : null}
+      <View style={{ backgroundColor: p.surfaceElevated, paddingTop: insets.top }}>
+        {/* Thanh đầu phong cách FB: logo, ô tìm, biểu tượng nhanh — nền khớp status bar */}
+        <View style={[styles.fbHeader, { backgroundColor: p.surfaceElevated, borderBottomColor: p.border }]}>
+          <LinearGradient colors={[p.accent, '#DD2476']} style={styles.brandMark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <FontAwesome name="pagelines" color="#FFF" size={22} />
+          </LinearGradient>
+          <View style={[styles.fbSearchFake, { backgroundColor: p.canvasMuted }]}>
+            <FontAwesome name="search" size={15} color={p.muted} />
+            <Text style={[styles.fbSearchLbl, { color: p.muted, fontFamily: Font.medium }]}>Tìm trên Gia Phả…</Text>
+          </View>
+          <View style={styles.fbIconRow}>
+            <Pressable accessibilityLabel="Tin nhắn" hitSlop={8} style={styles.roundIconBtn} onPress={() => router.push('/chat')}>
+              <FontAwesome name="comment-o" size={21} color={p.accent} />
+            </Pressable>
+            <Pressable accessibilityLabel="Thông báo" hitSlop={8} style={styles.roundIconBtn} onPress={() => router.push('/notifications')}>
+              <FontAwesome name="bell-o" size={21} color={p.accent} />
+            </Pressable>
+          </View>
         </View>
       </View>
 

@@ -12,6 +12,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
 import { useAuth } from '@/context/useAuth'
@@ -172,15 +173,16 @@ export default function ConnectionsScreen() {
 
   if (!sb || !uid) {
     return (
-      <View style={[styles.center, { backgroundColor: p.canvas }]}>
+      <SafeAreaView style={[styles.center, { flex: 1, backgroundColor: p.canvas }]} edges={['top', 'left', 'right']}>
         <Text style={{ color: p.muted, fontFamily: Font.medium }}>Cần đăng nhập để xem kết nối.</Text>
-      </View>
+      </SafeAreaView>
     )
   }
 
   return (
     <>
       <Stack.Screen options={{ title: 'Kết nối', headerBackTitle: 'Lại', headerTintColor: p.accent }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: p.canvas }} edges={['top', 'left', 'right']}>
       <ScrollView
         style={{ flex: 1, backgroundColor: p.canvas }}
         contentContainerStyle={styles.scroll}
@@ -351,6 +353,7 @@ export default function ConnectionsScreen() {
 
         <View style={{ height: 12 }} />
       </ScrollView>
+      </SafeAreaView>
     </>
   )
 }

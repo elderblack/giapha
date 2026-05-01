@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
 import { role } from '../../design/roles'
@@ -23,10 +23,48 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
   const { user } = useAuth()
   const sb = getSupabase()
   const uid = user?.id
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [posts, setPosts] = useState<FeedPostState[] | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const highlightPostId = embedOnHome ? searchParams.get('post')?.trim() ?? '' : ''
+  const highlightDoneRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!embedOnHome || !highlightPostId || posts === null) return
+    const hasPost = posts.some((p) => p.id === highlightPostId)
+    if (!hasPost) return
+    if (highlightDoneRef.current === highlightPostId) return
+
+    const raf = window.requestAnimationFrame(() => {
+      const el = document.getElementById(`feed-post-${highlightPostId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add('ring-2', 'ring-abnb-primary', 'ring-offset-2', 'ring-offset-abnb-canvas', 'rounded-abnb-xl')
+        window.setTimeout(() => {
+          el.classList.remove(
+            'ring-2',
+            'ring-abnb-primary',
+            'ring-offset-2',
+            'ring-offset-abnb-canvas',
+            'rounded-abnb-xl',
+          )
+        }, 2600)
+      }
+      highlightDoneRef.current = highlightPostId
+      const next = new URLSearchParams(searchParams)
+      next.delete('post')
+      setSearchParams(next, { replace: true })
+    })
+
+    return () => window.cancelAnimationFrame(raf)
+  }, [embedOnHome, highlightPostId, posts, searchParams, setSearchParams])
+
+  useLayoutEffect(() => {
+    highlightDoneRef.current = null
+  }, [highlightPostId, treeId])
 
   const refresh = useCallback(async () => {
     if (!treeId || !sb) return
@@ -216,7 +254,8 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
           {posts.map((p, idx) => (
             <li
               key={p.id}
-              className="feed-home-post-enter"
+              id={`feed-post-${p.id}`}
+              className="feed-home-post-enter scroll-mt-28"
               style={{
                 animationDelay: `${Math.min(idx * 52, 620)}ms`,
               }}

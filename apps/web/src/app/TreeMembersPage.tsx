@@ -22,6 +22,7 @@ import { memberInitial, treeAlertErr } from './tree/treeUi'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { feedUserProfilePath } from './feed/feedProfileHref'
 import { broadcastFamilyChatThreadsReload } from './chat/chatReadSync'
+import { LunarFromSolarButton } from './tree/LunarFromSolarButton'
 import { TreeMembersSkeleton } from './tree/TreeTabSkeletons'
 
 type AccountRoleRow = {

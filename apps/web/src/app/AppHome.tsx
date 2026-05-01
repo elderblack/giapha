@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
   Loader2,
@@ -22,6 +22,8 @@ import { TreeRoleChip } from './tree/TreeChrome'
 export function AppHome() {
   const { user } = useAuth()
   const sb = getSupabase()
+  const [searchParams] = useSearchParams()
+  const treeFromQuery = searchParams.get('tree')?.trim() ?? ''
 
   /** `undefined` = đang tải, `null` = chưa có dòng họ, UUID = có cây */
   const [homeTreeId, setHomeTreeId] = useState<string | null | undefined>(undefined)
@@ -50,6 +52,10 @@ export function AppHome() {
       ? (user.user_metadata.full_name as string).trim()
       : null
 
+  /** Mở đúng dòng họ từ thông báo (`?tree=`) nếu có. */
+  const workspaceTreeId =
+    homeTreeId === undefined ? undefined : treeFromQuery.length > 0 ? treeFromQuery : homeTreeId
+
   return (
     <div className="mx-auto w-full max-w-6xl">
       {homeTreeId === undefined ? (
@@ -65,8 +71,8 @@ export function AppHome() {
         </section>
       ) : null}
 
-      {homeTreeId !== undefined && homeTreeId !== null ? (
-        <TreeWorkspaceProvider treeId={homeTreeId}>
+      {workspaceTreeId !== undefined && workspaceTreeId !== null ? (
+        <TreeWorkspaceProvider treeId={workspaceTreeId}>
           <HomeSocialLayout displayName={displayName} />
         </TreeWorkspaceProvider>
       ) : null}
