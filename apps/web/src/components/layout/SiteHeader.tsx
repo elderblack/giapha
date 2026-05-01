@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { TreePine } from 'lucide-react'
 import { role } from '../../design/roles'
+import { APP_DISPLAY_NAME, APP_LOGO_URL } from '../../lib/appHeaderBrandEvents'
 
 const nav = [
   { href: '/roadmap', label: 'Lộ trình', route: true as const },
@@ -19,12 +19,12 @@ export function SiteHeader() {
           className="group flex items-center gap-2.5 text-abnb-ink no-underline"
         >
           <span
-            className="flex h-10 w-10 items-center justify-center rounded-abnb-md bg-gradient-to-br from-abnb-surfaceSoft to-abnb-surfaceStrong text-abnb-primary shadow-abnb-inner ring-1 ring-abnb-hairlineSoft transition-transform duration-200 group-hover:scale-[1.03]"
+            className="flex h-10 w-10 shrink-0 overflow-hidden rounded-abnb-md bg-abnb-canvas shadow-abnb-inner ring-1 ring-abnb-hairlineSoft transition-transform duration-200 group-hover:scale-[1.03]"
             aria-hidden
           >
-            <TreePine className="h-[1.125rem] w-[1.125rem]" strokeWidth={2} />
+            <img src={APP_LOGO_URL} alt="" className="h-full w-full object-cover object-center" />
           </span>
-          <span className="text-[17px] font-semibold tracking-[-0.02em]">GiaPhả</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">{APP_DISPLAY_NAME}</span>
         </Link>
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Điều hướng chính">
           {nav.map((item) =>
@@ -60,12 +60,12 @@ export function SiteHeader() {
           >
             Đăng ký
           </Link>
-          <a
-            href="#waitlist"
+          <Link
+            to="/app/login"
             className={`${role.btnPrimary} !h-11 !rounded-full !px-5 !text-sm lg:hidden`}
           >
             Dùng thử
-          </a>
+          </Link>
         </div>
       </div>
     </header>

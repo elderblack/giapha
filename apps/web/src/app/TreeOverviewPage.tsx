@@ -5,6 +5,7 @@ import { AppProductTour } from './AppProductTour'
 import { useTreeWorkspace } from './tree/treeWorkspaceContext'
 import { TreePageIntro } from './tree/TreeChrome'
 import { TreeOverviewSkeleton } from './tree/TreeTabSkeletons'
+import { TreeAppBrandEditor } from './tree/TreeAppBrandEditor'
 
 export function TreeOverviewPage() {
   const { tree, treeId, members } = useTreeWorkspace()
@@ -58,6 +59,8 @@ export function TreeOverviewPage() {
         {statTile('Quê / gốc', tree.origin_place?.trim() || '—')}
         {statTile('Chi / nhánh', tree.clan_name?.trim() || '—')}
       </div>
+
+      <TreeAppBrandEditor />
 
       <div className={`${role.cardElevated} rounded-abnb-xl border border-abnb-hairlineSoft/90 !p-6 sm:!p-8`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

@@ -1,4 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
+import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -15,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
+import { logoMarkAsset } from '@/constants/brand'
 import { useAuth } from '@/context/useAuth'
 import { usePalette } from '@/hooks/usePalette'
 import { getSupabase, hasSupabaseCredentials } from '@/lib/supabase'
@@ -65,8 +67,8 @@ export default function ResetPasswordScreen() {
         <LinearGradient colors={p.scheme === 'dark' ? ['#1f1320', '#0B0F14'] : ['#FFF0F4', '#F4F6F9']} style={styles.gradTop}>
           <SafeAreaView edges={['top']}>
             <View style={styles.topBrand}>
-              <View style={[styles.logoMark, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
-                <FontAwesome name="tree" size={30} color="#FFF" />
+              <View style={[styles.logoMark, { padding: 0, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' }]}>
+                <Image source={logoMarkAsset} style={{ width: 58, height: 58 }} contentFit="cover" />
               </View>
             </View>
           </SafeAreaView>
@@ -124,9 +126,9 @@ export default function ResetPasswordScreen() {
     <View style={[styles.flex, { backgroundColor: p.canvas }]}>
       <LinearGradient colors={p.scheme === 'dark' ? ['#1f1320', '#0B0F14'] : ['#FFF0F4', '#F4F6F9']} style={styles.gradTop}>
         <SafeAreaView edges={['top']}>
-          <View style={styles.topBrand}>
-            <View style={[styles.logoMark, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
-              <FontAwesome name="tree" size={30} color="#FFF" />
+            <View style={styles.topBrand}>
+            <View style={[styles.logoMark, { padding: 0, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' }]}>
+              <Image source={logoMarkAsset} style={{ width: 58, height: 58 }} contentFit="cover" />
             </View>
             <Text style={[styles.brandTypo, { fontFamily: Font.extraBold }, { color: p.scheme === 'dark' ? p.ink : '#1E0A14' }]}>
               Đặt mật khẩu mới

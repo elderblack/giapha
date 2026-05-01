@@ -27,6 +27,8 @@ export type TreeWorkspaceValue = {
   setLinkMsg: (v: string | null) => void
   claimMember: (memberId: string) => Promise<void>
   unlinkMember: (memberId: string) => Promise<void>
+  /** Tải lại hàng family_trees (sau khi chủ sửa brand / ảnh bìa…). */
+  reloadTree: () => Promise<void>
 }
 
 export const TreeWorkspaceContext = createContext<TreeWorkspaceValue | null>(null)

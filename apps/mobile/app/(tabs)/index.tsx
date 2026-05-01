@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView,
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useIsFocused } from '@react-navigation/native'
 
+import { logoMarkAsset } from '@/constants/brand'
 import { FeedComposeModal } from '@/components/feed/FeedComposeModal'
 import { FeedPostCardMobile, type FeedCardViewportPayload } from '@/components/feed/FeedPostCardMobile'
 import { Text } from '@/components/Themed'
@@ -308,9 +309,9 @@ export default function HomeScreen() {
       <View style={{ backgroundColor: p.surfaceElevated, paddingTop: insets.top }}>
         {/* Thanh đầu phong cách FB: logo, ô tìm, biểu tượng nhanh — nền khớp status bar */}
         <View style={[styles.fbHeader, { backgroundColor: p.surfaceElevated, borderBottomColor: p.border }]}>
-          <LinearGradient colors={[p.accent, '#DD2476']} style={styles.brandMark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <FontAwesome name="pagelines" color="#FFF" size={22} />
-          </LinearGradient>
+          <View style={[styles.brandMark, { overflow: 'hidden', backgroundColor: p.canvasMuted }]}>
+            <Image source={logoMarkAsset} style={{ width: 38, height: 38 }} resizeMode="cover" />
+          </View>
           <View style={[styles.fbSearchFake, { backgroundColor: p.canvasMuted }]}>
             <FontAwesome name="search" size={15} color={p.muted} />
             <Text style={[styles.fbSearchLbl, { color: p.muted, fontFamily: Font.medium }]}>Tìm trên Gia Phả…</Text>

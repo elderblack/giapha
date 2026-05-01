@@ -5,8 +5,11 @@ import { FloatingMiniChat } from './chat/FloatingMiniChat'
 import { HeaderProfileAvatar } from './HeaderProfileAvatar'
 import { NotificationBell } from './NotificationBell'
 import { role } from '../design/roles'
+import { APP_LOGO_URL } from '../lib/appHeaderBrandEvents'
+import { useAppHeaderBrand } from '../hooks/useAppHeaderBrand'
 
 export function AppShell() {
+  const { title, logoUrlWithBust } = useAppHeaderBrand()
   const navCls = ({ isActive }: { isActive: boolean }) =>
     `whitespace-nowrap rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors sm:text-[15px] sm:px-4 ${
       isActive
@@ -27,10 +30,18 @@ export function AppShell() {
             to="/app"
             className="flex min-w-0 shrink-0 items-center gap-2 text-abnb-ink no-underline transition-opacity hover:opacity-90 sm:gap-2.5"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-abnb-md bg-gradient-to-br from-abnb-primary/[0.15] to-abnb-luxe/[0.08] text-abnb-primary shadow-abnb-inner ring-1 ring-abnb-hairlineSoft sm:h-10 sm:w-10">
-              <TreePine className="h-[1.05rem] w-[1.05rem] sm:h-[1.125rem] sm:w-[1.125rem]" strokeWidth={2} />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-abnb-md bg-gradient-to-br from-abnb-primary/[0.15] to-abnb-luxe/[0.08] text-abnb-primary shadow-abnb-inner ring-1 ring-abnb-hairlineSoft sm:h-10 sm:w-10">
+              {logoUrlWithBust ? (
+                <img
+                  src={logoUrlWithBust}
+                  alt=""
+                  className="h-full w-full min-h-0 min-w-0 shrink-0 object-cover object-center"
+                />
+              ) : (
+                <img src={APP_LOGO_URL} alt="" className="h-full w-full object-cover object-center" />
+              )}
             </span>
-            <span className="truncate text-[16px] font-semibold tracking-tight sm:text-[18px]">GiaPhả</span>
+            <span className="truncate text-[16px] font-semibold tracking-tight sm:text-[18px]">{title}</span>
           </Link>
           <nav
             className={`${role.appNavTrack} mx-1 hidden min-w-0 flex-1 justify-center md:mx-2 md:flex md:flex-initial`}

@@ -1,12 +1,13 @@
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronRight, Loader2, Plus, KeyRound, TreePine } from 'lucide-react'
+import { ChevronRight, Loader2, Plus, KeyRound } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v3'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
 import { getUserFamilyTreeId } from '../lib/familyTreeMembership'
+import { APP_LOGO_URL } from '../lib/appHeaderBrandEvents'
 import { getSupabase } from '../lib/supabase'
 
 type TreeRow = {
@@ -148,8 +149,8 @@ export function TreesListPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start lg:gap-10">
         <div className={`${role.pageHero} animate-fade-up overflow-hidden`}>
           <div className="flex flex-col items-start gap-4 sm:flex-row">
-            <span className={`${role.iconTile} !h-14 !w-14`}>
-              <TreePine className="h-7 w-7" strokeWidth={1.75} />
+            <span className={`${role.iconTile} !h-14 !w-14 !p-0 overflow-hidden`}>
+              <img src={APP_LOGO_URL} alt="" className="h-full w-full object-cover object-center" />
             </span>
             <div className="min-w-0">
               <p className={role.kicker}>Dòng họ</p>

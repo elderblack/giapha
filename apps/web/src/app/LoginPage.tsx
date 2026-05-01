@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { Loader2, TreePine } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
+import { APP_DISPLAY_NAME, APP_LOGO_URL } from '../lib/appHeaderBrandEvents'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { normalizeVnPhoneToE164 } from '../lib/phoneE164'
 import { role } from '../design/roles'
@@ -240,11 +241,11 @@ export function LoginPage() {
         />
         <div className="relative flex h-full min-h-svh flex-col justify-end p-10 xl:p-14">
           <div className="max-w-lg">
-            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-2 ring-white/25 backdrop-blur-md">
-              <TreePine className="h-8 w-8 text-white" strokeWidth={1.75} aria-hidden />
+            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/15 ring-2 ring-white/25 backdrop-blur-md">
+              <img src={APP_LOGO_URL} alt="" className="h-full w-full object-cover object-center" />
             </div>
             <h2 className="text-[2.125rem] font-bold leading-[1.15] tracking-tight text-white drop-shadow-sm xl:text-[2.5rem]">
-              Gia Phả
+              {APP_DISPLAY_NAME}
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-white/90">
               Gìn giữ dòng họ, kết nối thế hệ — một nơi chia sẻ cây gia phả, kỷ niệm và tin nhắn riêng tư cho cả nhà.
@@ -275,10 +276,10 @@ export function LoginPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" aria-hidden />
           <div className="absolute inset-x-0 bottom-0 p-5">
-            <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-              <TreePine className="h-6 w-6 text-white" strokeWidth={1.75} />
+            <div className="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-white/20 backdrop-blur-sm">
+              <img src={APP_LOGO_URL} alt="" className="h-full w-full object-cover object-center" />
             </div>
-            <p className="mt-3 text-xl font-bold text-white drop-shadow">Gia Phả</p>
+            <p className="mt-3 text-xl font-bold text-white drop-shadow">{APP_DISPLAY_NAME}</p>
           </div>
         </div>
 
@@ -286,7 +287,7 @@ export function LoginPage() {
           to="/"
           className="relative z-[1] mb-6 inline-flex w-fit shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-abnb-body no-underline transition-colors hover:bg-abnb-surfaceSoft"
         >
-          <TreePine className="h-5 w-5 text-abnb-primary" />
+          <img src={APP_LOGO_URL} alt="" className="h-5 w-5 rounded-abnb-md object-cover" />
           <span className="text-sm font-semibold">Về trang chủ</span>
         </Link>
 

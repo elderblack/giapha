@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { Loader2, TreePine } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
+import { APP_LOGO_URL } from '../lib/appHeaderBrandEvents'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { role } from '../design/roles'
 
@@ -39,7 +40,7 @@ export function ResetPasswordPage() {
       <div className="relative min-h-svh bg-abnb-canvas">
         <div className="flex min-h-svh flex-col items-center justify-center px-6">
           <div className={`${role.card} w-full max-w-md rounded-abnb-xl !p-8 text-center shadow-abnb-lg`}>
-            <TreePine className="mx-auto h-10 w-10 text-abnb-primary" />
+            <img src={APP_LOGO_URL} alt="" className="mx-auto h-10 w-10 rounded-abnb-lg object-cover" />
             <h1 className={`${role.headingSection} mt-4`}>Liên kết không hợp lệ</h1>
             <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
               Link đặt lại mật khẩu đã hết hạn hoặc đã dùng. Hãy gửi email mới.
@@ -97,7 +98,7 @@ export function ResetPasswordPage() {
           to="/"
           className="mb-8 inline-flex items-center gap-2 text-abnb-ink no-underline opacity-80 hover:opacity-100"
         >
-          <TreePine className="h-5 w-5 text-abnb-primary" />
+          <img src={APP_LOGO_URL} alt="" className="h-5 w-5 rounded-abnb-md object-cover" />
           <span className="text-sm font-semibold">Về landing</span>
         </Link>
         <div className={`${role.card} w-full max-w-md rounded-abnb-xl !p-8 shadow-abnb-lg`}>

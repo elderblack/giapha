@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { TreePine } from 'lucide-react'
 import { role } from '../../design/roles'
+import { APP_DISPLAY_NAME, APP_LOGO_URL } from '../../lib/appHeaderBrandEvents'
 
 export function SiteFooter() {
   const year = new Date().getFullYear()
@@ -11,12 +11,12 @@ export function SiteFooter() {
           <div className="lg:col-span-5">
             <div className="flex items-center gap-2.5">
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-abnb-md bg-abnb-canvas text-abnb-primary shadow-abnb ring-1 ring-abnb-hairlineSoft"
+                className="flex h-9 w-9 shrink-0 overflow-hidden rounded-abnb-md bg-abnb-canvas shadow-abnb ring-1 ring-abnb-hairlineSoft"
                 aria-hidden
               >
-                <TreePine className="h-4 w-4" strokeWidth={2} />
+                <img src={APP_LOGO_URL} alt="" className="h-full w-full object-cover object-center" />
               </span>
-              <span className={`${role.headingModule} text-[17px]`}>GiaPhả</span>
+              <span className={`${role.headingModule} text-[17px]`}>{APP_DISPLAY_NAME}</span>
             </div>
             <p className={`${role.bodySm} mt-5 max-w-sm leading-relaxed`}>
               Mạng xã hội dòng họ và cây gia phả — một nền tảng, nhiều thế hệ, một không gian riêng
@@ -63,7 +63,7 @@ export function SiteFooter() {
         </div>
         <div className="mt-14 border-t border-abnb-hairlineSoft pt-8">
           <p className={role.legalTiny}>
-            © {year} GiaPhả. Cấu trúc nội dung tham khảo{' '}
+            © {year} {APP_DISPLAY_NAME}. Cấu trúc nội dung tham khảo{' '}
             <a
               href="https://giaphadaiviet.vn/"
               className="text-abnb-legalLink underline-offset-2 hover:underline"

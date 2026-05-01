@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, TreePine } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { APP_LOGO_URL } from '../lib/appHeaderBrandEvents'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { role } from '../design/roles'
 
@@ -60,7 +61,7 @@ export function ForgotPasswordPage() {
           to="/"
           className="mb-8 inline-flex items-center gap-2 text-abnb-ink no-underline opacity-80 hover:opacity-100"
         >
-          <TreePine className="h-5 w-5 text-abnb-primary" />
+          <img src={APP_LOGO_URL} alt="" className="h-5 w-5 rounded-abnb-md object-cover" />
           <span className="text-sm font-semibold">Về landing</span>
         </Link>
         <div className={`${role.card} w-full max-w-md rounded-abnb-xl !p-8 shadow-abnb-lg`}>

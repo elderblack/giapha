@@ -215,6 +215,13 @@ export function TreeWorkspaceProvider({
     [sb, loadMembers],
   )
 
+  const reloadTree = useCallback(async () => {
+    if (!sb || !treeId) return
+    const { data, error } = await sb.from('family_trees').select('*').eq('id', treeId).maybeSingle()
+    if (error) return
+    setTree((data as TreeRow | null) ?? null)
+  }, [sb, treeId])
+
   const unlinkMember = useCallback(
     async (memberId: string) => {
       if (!sb) return
@@ -258,6 +265,7 @@ export function TreeWorkspaceProvider({
       setLinkMsg,
       claimMember,
       unlinkMember,
+      reloadTree,
     }),
     [
       treeId,
@@ -279,6 +287,7 @@ export function TreeWorkspaceProvider({
       linkMsg,
       claimMember,
       unlinkMember,
+      reloadTree,
     ],
   )
 

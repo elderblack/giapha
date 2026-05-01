@@ -5,6 +5,11 @@ export type TreeRow = {
   origin_place: string | null
   description: string | null
   owner_id: string | null
+  /** Tên trên header app (chủ dòng); null = mặc định app ("Cội Nguồn"). */
+  app_header_display_name?: string | null
+  /** Path trong bucket family-tree-brand. */
+  app_header_logo_path?: string | null
+  cover_url?: string | null
 }
 
 export type MemberRow = {

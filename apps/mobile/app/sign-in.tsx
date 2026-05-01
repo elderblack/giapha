@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
+import { APP_DISPLAY_NAME, logoMarkAsset } from '@/constants/brand'
 import { useAuth } from '@/context/useAuth'
 import { usePalette } from '@/hooks/usePalette'
 import { getSupabase, hasSupabaseCredentials } from '@/lib/supabase'
@@ -162,11 +163,11 @@ export default function SignInScreen() {
         />
         <SafeAreaView edges={['top']} style={styles.heroSafe}>
           <View style={styles.topBrand}>
-            <View style={styles.logoMark}>
-              <FontAwesome name="tree" size={28} color="#FFF" />
+            <View style={[styles.logoMark, { padding: 0, overflow: 'hidden' }]}>
+              <Image source={logoMarkAsset} style={{ width: 58, height: 58 }} contentFit="cover" />
             </View>
             <Text style={[styles.brandTypo, { fontFamily: Font.extraBold, color: '#FFFFFF' }]}>
-              Gia Phả
+              {APP_DISPLAY_NAME}
             </Text>
             <Text style={[styles.tags, { fontFamily: Font.medium, color: 'rgba(255,255,255,0.88)' }]}>
               Gìn giữ dòng họ · kết nối thế hệ
