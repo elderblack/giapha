@@ -101,7 +101,7 @@ export const DEVELOPMENT_PLAN: PlanPhase[] = [
     weekRange: 'Tuần 17–20',
     goal: 'iOS & Android',
     tasks: [
-      { id: 'p6-t1', label: 'Expo setup, Expo Router' },
+      { id: 'p6-t1', label: 'Expo setup, Expo Router', shipped: true },
       { id: 'p6-t2', label: 'Port tất cả màn hình sang React Native' },
       { id: 'p6-t3', label: 'Cây gia phả mobile (react-native-svg)' },
       { id: 'p6-t4', label: 'Push notifications (FCM + APNs)' },

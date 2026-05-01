@@ -10,8 +10,10 @@ Cập nhật: **tháng 4/2026** (bổ sung Phase 4 feed & kết nối).
 | **Phase 2** — Auth, RLS, mã mời, storage | Hoàn thành | Migration `20260428120000_phase2_rls_storage_invite.sql` + app `/app/*` |
 | **Phase 3** — Cây gia phả (thành viên, quan hệ, UI cây) | **Hoàn thành (mã nguồn)** | Cây, thế hệ, giỗ email dương/âm, gợi ý âm UI, template Auth tiếng Việt trong repo. **Cloud:** chạy migration, deploy Edge `memorial-reminders`, lịch gọi cron + secrets (Dashboard). |
 | **Phase 4** — Bảng tin & kết nối | Hoàn thành (mã nguồn) | Migration `20260601120000_phase4_feed_social.sql` (posts, reactions, comments, follows, friendships, notifications, bucket `family-feed-media`, Realtime). App tab **Bảng tin** trong dòng họ, `/app/connections`, chuông thông báo. |
+| **Phase 5** — Chat realtime | Hoàn thành (mã nguồn) | DM + nhóm, presence, badge đọc, thông báo trong app — xem mục Phase 5 dưới. **Cloud:** migration Phase 5 + Realtime + bucket chat. |
+| **Phase 6** — Mobile (Expo) | **Đang triển khai** | `apps/mobile`: Expo SDK 54 + Expo Router, Metro monorepo + pnpm; bundle id `vn.giapha.app`. Chạy: `pnpm dev:mobile`. |
 
-**Tóm lắc:** vận hành: áp Phase 4 migration + bật Realtime trên bảng nếu cần; Phase 5+ (chat đầy đủ…) theo ROADMAP; Phase 3 cloud: cron nhắc giỗ.
+**Tóm lắc:** vận hành: áp migration Phase 4–5…; **Phase 6** xây app iOS/Android song song web; Phase 3 cloud: cron nhắc giỗ.
 
 
 ---
@@ -61,24 +63,36 @@ Cập nhật: **tháng 4/2026** (bổ sung Phase 4 feed & kết nối).
 
 **Cloud:** chạy migration Phase 4; kiểm tra publication Realtime và bucket trên Dashboard nếu cần.
 
-## Phase 5 — Chat realtime DM (mã nguồn)
+## Phase 5 — Chat realtime (đã xong — mã nguồn)
 
 **Đã có**
 
-- Backend: `family_chat_conversations`, `family_chat_participants`, `family_chat_messages` + RLS (chỉ participant xem/gửi) + RPC `family_chat_open_dm` (kiểm tra friendship). Storage bucket `family-chat-media` + policies. Trigger thông báo tin nhắn (`chat_message` → `family_notifications`). Publication Realtime trên `family_chat_messages`.
-- Web: Route `/app/chat` + `/app/chat/:conversationId`; `ChatShell`, `ThreadList`, `MessageList`, `MessageComposer`; badge tin chưa đọc (icon shell); typing indicator + online presence (Supabase Broadcast + Presence channel). Nút "Nhắn tin" trên **Kết nối** và hồ sơ người khác.
+- Backend: `family_chat_conversations` (kind DM/group, `title`), `family_chat_participants`, `family_chat_messages` + RLS + RPC `family_chat_open_dm` (friendship) + nhóm/RPC trong migration `20260806120000_family_chat_groups.sql` (điều kiện bạn bè / cùng dòng họ). Storage `family-chat-media` + policies. Thông báo tin nhắn → `family_notifications`. Publication Realtime trên `family_chat_messages` (và các bảng liên quan theo migration).
+- Web: `/app/chat`, `ChatShell`, `ThreadList`, `MessageList`, `MessageComposer`; chat nổi / dock; nhóm (`ChatCreateGroupModal`, tiêu đề nhóm trong luồng); badge chưa đọc; typing + presence.
 
-**Cloud:** chạy migration `20260801120000_phase5_chat_realtime.sql`; kiểm tra publication Realtime trên `family_chat_messages` và bucket `family-chat-media` trên Dashboard. Realtime local: `supabase start` tự bật publication cho bảng đã khai báo.
+**Cloud:** áp migrations `20260801120000_phase5_chat_realtime.sql`, `20260806120000_family_chat_groups.sql` (và mọi migration RLS chat đi kèm trong repo); bật Realtime + bucket trên Dashboard. Local: `supabase start`.
 
-## Phase 6+ (dự kiến)
+## Phase 6 — Mobile (Expo / React Native)
 
-- Sau đó: tìm kiếm công khai / monetization (nếu có).
+**Tiến độ (mã nguồn)**
+
+- `apps/mobile`: template **tabs** + **Expo Router** (stack + tab *Trang nhà* / *Dòng họ* placeholder), scheme `giapha`, `metro.config.js` + `babel.config.js` theo monorepo pnpm (`watchFolders` workspace root).
+- Lệnh gốc repo: `pnpm dev:mobile` (tương đương `pnpm --filter mobile dev` → `expo start`).
+
+**Việc tiếp (Phase 6)**
+
+- `p6-t2` …: Supabase Auth (`@supabase/supabase-js`), port màn hình; `p6-t3` phả đồ (`react-native-svg`); push FCM/APNs; offline (theo `apps/web/src/content/devPlan.ts`).
+
+## Sau Phase 6
+
+- Tìm kiếm công khai, monetization — theo Phase 7 trong `devPlan.ts` (chưa làm).
 
 ---
 
 ## Tham chiếu nhanh
 
 - Migration: `supabase/migrations/`
-- App routes: `apps/web/src/App.tsx`
+- App web: `apps/web/src/App.tsx`
+- App mobile: `apps/mobile/app/` (Expo Router)
 - Chi tiết dòng họ: `TreeDetailLayout.tsx`, tab **Trang chủ / Phả hệ / Thành viên** (`TreeOverviewPage.tsx`, `TreeChartPage.tsx`, `TreeMembersPage.tsx`); bản tin: `feed/TreeFeedPage` trên **Trang nhà** `AppHome.tsx`
 - Kế hoạch chi tiết (7 phase, checkbox): `apps/web/src/pages/landing/RoadmapPage.tsx`, dữ liệu `apps/web/src/content/devPlan.ts`

@@ -8,34 +8,29 @@ import { chartSubtitleForViewer } from '../lib/kinshipVi'
 import { computeMemberGenerations } from '../lib/familyTreeGenerations'
 import { memberInitial } from '../app/tree/treeUi'
 import type { ChartMember } from './FamilyTreeChart'
-
-const ROOT_ID = '__tree_root__'
+import {
+  ROOT_ID,
+  buildHierarchyOrthogonalLinkPaths,
+  type StratRowForHierarchy,
+  type MarriageSeg,
+} from '../lib/familyHierarchyOrthogonalLinks'
 
 /** root = đầu nhánh; spouse_inline = vào cùng thế hệ với vợ/chồng (không vẽ cạnh ↑ cha/mẹ) */
-type ParentEdge = 'father' | 'mother' | 'root' | 'spouse_inline'
-
-type StratRow = {
-  id: string
-  parentId: string | null
-  name: string
-  avatar_url: string | null
-  is_self: boolean
-  parent_edge: ParentEdge
-}
+type StratRow = StratRowForHierarchy
 
 function buildStratRows(members: ChartMember[], selfMemberId: string | null | undefined): StratRow[] {
   const idSet = new Set(members.map((m) => m.id))
   const memberById = new Map(members.map((m) => [m.id, m]))
   const primaryParent = (
     m: ChartMember,
-  ): { id: string | null; edge: ParentEdge } => {
+  ): { id: string | null; edge: StratRowForHierarchy['parent_edge'] } => {
     if (m.father_id && idSet.has(m.father_id)) return { id: m.father_id, edge: 'father' }
     if (m.mother_id && idSet.has(m.mother_id)) return { id: m.mother_id, edge: 'mother' }
     return { id: null, edge: 'root' }
   }
   const selfId = selfMemberId ?? null
 
-  const resolveParent = (m: ChartMember): { parentId: string; parent_edge: ParentEdge } => {
+  const resolveParent = (m: ChartMember): { parentId: string; parent_edge: StratRowForHierarchy['parent_edge'] } => {
     const p = primaryParent(m)
     if (p.id !== null) return { parentId: p.id, parent_edge: p.edge }
     const sid = m.spouse_id
@@ -82,7 +77,7 @@ function chartRowsForKinship(members: ChartMember[]): MemberRow[] {
   }))
 }
 
-function edgeHint(edge: ParentEdge): string {
+function edgeHint(edge: StratRowForHierarchy['parent_edge']): string {
   if (edge === 'father') return '↑ Cha'
   if (edge === 'mother') return '↑ Mẹ'
   if (edge === 'spouse_inline') return 'Vợ/chồng'
@@ -194,10 +189,13 @@ function collectMarriageSegments(
   genMap: Map<string, number>,
   nodeW: number,
   nodeH: number,
-): { x1: number; x2: number; y: number }[] {
+): MarriageSeg[] {
   const seen = new Set<string>()
-  const out: { x1: number; x2: number; y: number }[] = []
+  const out: MarriageSeg[] = []
   const pos = new Map<string, d3.HierarchyPointNode<StratRow>>()
+  const half = nodeH / 2
+  const gapSeg = Math.max(5, Math.round(nodeH * 0.06))
+  const pad = 1.75
   for (const n of layoutRoot.descendants()) {
     if (n.data.id !== ROOT_ID) pos.set(n.data.id, n)
   }
@@ -215,10 +213,45 @@ function collectMarriageSegments(
     const x1 = leftN.x + nodeW / 2
     const x2 = rightN.x - nodeW / 2
     if (x2 <= x1 + 2) continue
-    const y = leftN.y - nodeH / 2 - 6
-    out.push({ x1, x2, y })
+    const y = Math.min(leftN.y, rightN.y) - half - gapSeg
+    out.push({
+      x1: x1 - pad,
+      x2: x2 + pad,
+      y,
+      aId: leftN.data.id,
+      bId: rightN.data.id,
+    })
   }
   return out
+}
+
+function expandInnerWidthForPackedNodes(
+  layoutRoot: d3.HierarchyPointNode<StratRow>,
+  innerWViewport: number,
+  nodeW: number,
+  siblingGap: number,
+): number {
+  const half = nodeW / 2
+  let minBx = Infinity
+  let maxBx = -Infinity
+  for (const n of layoutRoot.descendants()) {
+    if (n.data.id === ROOT_ID) continue
+    minBx = Math.min(minBx, n.x - half)
+    maxBx = Math.max(maxBx, n.x + half)
+  }
+  if (!Number.isFinite(minBx) || !Number.isFinite(maxBx)) return innerWViewport
+
+  const span = maxBx - minBx
+  const gutter = Math.max(28, Math.round(siblingGap * 1.5))
+  const innerUsed = Math.max(innerWViewport, Math.ceil(span + gutter * 2))
+  const ox = (innerUsed - span) / 2 - minBx
+
+  if (Math.abs(ox) >= 1e-4) {
+    for (const n of layoutRoot.descendants()) {
+      n.x += ox
+    }
+  }
+  return innerUsed
 }
 
 type Props = {
@@ -259,11 +292,10 @@ export function FamilyTreeHierarchyChart({
 
     const width = Math.max(wrap.clientWidth, 320)
     const margin = { top: 24, right: 36, bottom: 28, left: 36 }
-    const innerW = width - margin.left - margin.right
+    const innerWViewport = width - margin.left - margin.right
     const innerH = Math.min(960, Math.max(400, 72 + members.length * 86))
 
     const svg = d3.select(svgEl)
-    svg.attr('width', width).attr('height', innerH + margin.top + margin.bottom).attr('viewBox', `0 0 ${width} ${innerH + margin.top + margin.bottom}`)
     svg.selectAll('*').remove()
 
     const stratRows = buildStratRows(members, selfMemberId ?? null)
@@ -288,7 +320,7 @@ export function FamilyTreeHierarchyChart({
     const zoomLayer = svg.append('g').attr('class', 'tree-zoom-layer')
     const g = zoomLayer.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
-    const treeLayout = d3.tree<StratRow>().size([innerW, innerH])
+    const treeLayout = d3.tree<StratRow>().size([innerWViewport, innerH])
     const layoutRoot = treeLayout(hierarchyRoot)
 
     const genMap = computeMemberGenerations(members)
@@ -299,30 +331,36 @@ export function FamilyTreeHierarchyChart({
     const nodeH = 54
     const pairGap = 14
     const siblingGap = 36
-    packSpousePairsByGeneration(layoutRoot, members, genMap, innerW, nodeW, pairGap, siblingGap)
+    packSpousePairsByGeneration(layoutRoot, members, genMap, innerWViewport, nodeW, pairGap, siblingGap)
+    const innerW = expandInnerWidthForPackedNodes(layoutRoot, innerWViewport, nodeW, siblingGap)
+    const svgTotalW = margin.left + innerW + margin.right
+    svg.attr('width', svgTotalW).attr('height', innerH + margin.top + margin.bottom).attr('viewBox', `0 0 ${svgTotalW} ${innerH + margin.top + margin.bottom}`)
+
     const marriages = collectMarriageSegments(layoutRoot, members, genMap, nodeW, nodeH)
 
     const stroke = abnbTokens.hairline
     const strokeSel = abnbTokens.primary
 
-    const linkGen = d3
-      .linkVertical<d3.HierarchyPointLink<StratRow>, d3.HierarchyPointNode<StratRow>>()
-      .x((d) => d.x)
-      .y((d) => d.y)
-
-    const links = layoutRoot.links().filter(
-      (l) => l.source.data.id !== ROOT_ID && l.target.data.parent_edge !== 'spouse_inline',
-    )
+    const linkPaths = buildHierarchyOrthogonalLinkPaths({
+      layoutRoot: layoutRoot as d3.HierarchyPointNode<StratRowForHierarchy>,
+      genMap,
+      membersForSpouseEdges: members,
+      nodeW,
+      nodeH,
+      marriagesWithIds: marriages,
+    })
 
     g.append('g')
       .attr('fill', 'none')
       .attr('stroke', stroke)
       .attr('stroke-opacity', 0.78)
       .attr('stroke-width', 1.35)
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-linejoin', 'round')
       .selectAll('path')
-      .data(links)
+      .data(linkPaths)
       .join('path')
-      .attr('d', (d) => linkGen(d))
+      .attr('d', (d) => d)
 
     g.append('g')
       .attr('fill', 'none')
