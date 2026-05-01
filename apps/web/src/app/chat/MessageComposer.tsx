@@ -37,6 +37,8 @@ export function MessageComposer(props: {
     })
     if (result.ok) {
       await props.onSendImage(result.path)
+    } else {
+      window.alert(result.error)
     }
     setSending(false)
   }

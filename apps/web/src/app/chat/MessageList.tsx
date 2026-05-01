@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react'
 import { MessageListSkeleton } from './ChatSkeletons'
 import { useAuth } from '../../auth/useAuth'
-import { getSupabase } from '../../lib/supabase'
 import type { ChatMessage } from './types'
+import { getFamilyChatMediaDisplayUrl } from './chatMediaDisplayUrl'
 
 function formatMsgTime(iso: string): string {
   try {
@@ -12,12 +13,29 @@ function formatMsgTime(iso: string): string {
 }
 
 function AttachmentImage({ path }: { path: string }) {
-  const sb = getSupabase()
-  if (!sb) return null
-  const { data } = sb.storage.from('family-chat-media').getPublicUrl(path)
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancel = false
+    void (async () => {
+      const u = await getFamilyChatMediaDisplayUrl(path)
+      if (!cancel) setSrc(u)
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [path])
+
+  if (!src) {
+    return (
+      <span className="mt-1 inline-block max-w-[14rem] rounded-lg bg-black/25 px-2 py-1.5 text-[11px] text-white/85">
+        Đang tải ảnh…
+      </span>
+    )
+  }
   return (
     <img
-      src={data.publicUrl}
+      src={src}
       alt="Ảnh đính kèm"
       className="mt-1 max-h-[16rem] max-w-[14rem] rounded-lg object-cover shadow-sm"
       loading="lazy"

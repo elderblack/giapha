@@ -1,7 +1,7 @@
 import { Image } from 'react-native'
 
 import type { FeedPostState } from '@/lib/feed/feedQueries'
-import { getFeedMediaPublicUrl } from '@/lib/feed/feedQueries'
+import { getFamilyFeedMediaDisplayUrl } from '@/lib/feed/feedMediaDisplayUrl'
 
 /** Giới hạn kích prefetch mỗi lần bảng tin cập nhật (tránh bão mạng). */
 const CAP_IMAGES = 80
@@ -44,34 +44,43 @@ export function scheduleWarmVideoUrls(urls: readonly string[]): void {
 export function prefetchFeedTreeMedia(posts: FeedPostState[] | null | undefined): void {
   if (!posts?.length) return
 
-  const imgs: string[] = []
-  const vids: string[] = []
-  const seenImg = new Set<string>()
-  const seenVid = new Set<string>()
+  type Kind = 'image' | 'video'
+  const paths: { path: string; kind: Kind }[] = []
+  const seen = new Set<string>()
+  let imgCount = 0
+  let vidCount = 0
 
   outer: for (const post of posts) {
     const sorted = [...post.media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     for (const m of sorted) {
-      const url = getFeedMediaPublicUrl(m.storage_path)
-      if (!url) continue
-      if (m.media_kind === 'image') {
-        if (imgs.length >= CAP_IMAGES) continue
-        if (seenImg.has(url)) continue
-        seenImg.add(url)
-        imgs.push(url)
+      const path = m.storage_path?.trim()
+      if (!path || seen.has(path)) continue
+      const kind: Kind = m.media_kind === 'video' ? 'video' : 'image'
+      if (kind === 'image') {
+        if (imgCount >= CAP_IMAGES) continue
+        imgCount++
       } else {
-        if (vids.length >= CAP_VIDEOS) continue
-        if (seenVid.has(url)) continue
-        seenVid.add(url)
-        vids.push(url)
+        if (vidCount >= CAP_VIDEOS) continue
+        vidCount++
       }
-      if (imgs.length >= CAP_IMAGES && vids.length >= CAP_VIDEOS) break outer
+      seen.add(path)
+      paths.push({ path, kind })
+      if (imgCount >= CAP_IMAGES && vidCount >= CAP_VIDEOS) break outer
     }
   }
 
-  for (const u of imgs) void Image.prefetch(u).catch(() => {})
-
-  scheduleWarmVideoUrls(vids)
+  void (async () => {
+    const imgs: string[] = []
+    const vids: string[] = []
+    for (const { path, kind } of paths) {
+      const url = await getFamilyFeedMediaDisplayUrl(path)
+      if (!url) continue
+      if (kind === 'image') imgs.push(url)
+      else vids.push(url)
+    }
+    for (const u of imgs) void Image.prefetch(u).catch(() => {})
+    scheduleWarmVideoUrls(vids)
+  })()
 }
 
 export function prefetchFeedLightboxSlides(

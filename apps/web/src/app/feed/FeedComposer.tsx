@@ -12,12 +12,15 @@ import type { FeedAttachmentItem } from './FeedAttachmentGrid'
 import { fileKindForPreview } from './guessFeedMedia'
 import { FeedComposerDraftArea } from './FeedComposerDraftArea'
 import { useComposerProfile } from './useComposerProfile'
+import type { FeedPublishOnProgress, FeedPublishProgress } from './publishFeedPost'
 
 export type FeedComposerTree = { id: string; name: string }
 
 type Props = {
   disabled?: boolean
-  onPublish: (body: string, files: File[]) => Promise<boolean>
+  onPublish: (body: string, files: File[], onProgress?: FeedPublishOnProgress) => Promise<boolean>
+  /** Báo cho gate/modal khi đang đăng để chặn đóng nhầm (vd. backdrop). */
+  onPublishingChange?: (publishing: boolean) => void
   trees: FeedComposerTree[]
   selectedTreeId: string | null
   onSelectedTreeChange: (treeId: string) => void
@@ -84,17 +87,40 @@ export function FeedComposer({
   audienceMode,
   embeddedInModal = false,
   onDismiss,
+  onPublishingChange,
   composerTitleId = 'giapha-feed-composer-title',
 }: Props) {
   const baseId = useId()
   const { displayName, avatarUrl: profileAvatarUrl } = useComposerProfile()
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<PreviewAttachment[]>([])
+  const [publishProgress, setPublishProgress] = useState<FeedPublishProgress | null>(null)
   const seqRef = useRef(0)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
 
   const blocked = disabled || trees.length === 0 || selectedTreeId == null
+  const busyUi = blocked || publishProgress !== null
+
+  useEffect(() => {
+    onPublishingChange?.(publishProgress !== null)
+  }, [publishProgress, onPublishingChange])
+
+  useEffect(() => {
+    return () => {
+      onPublishingChange?.(false)
+    }
+  }, [onPublishingChange])
+
+  useEffect(() => {
+    if (!publishProgress || publishProgress.phase !== 'uploading') return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [publishProgress])
   const currentTreeName = trees.find((t) => t.id === selectedTreeId)?.name ?? ''
 
   const draftRef = useRef<HTMLTextAreaElement>(null)
@@ -137,17 +163,22 @@ export function FeedComposer({
   }
 
   async function submit() {
-    if (blocked) return
+    if (blocked || publishProgress) return
     const files = attachments.map((a) => a.file)
-    const ok = await onPublish(text, files)
-    if (ok) {
-      setText('')
-      setAttachments((prev) => {
-        prev.forEach((p) => URL.revokeObjectURL(p.url))
-        return []
-      })
-      if (imageInputRef.current) imageInputRef.current.value = ''
-      if (videoInputRef.current) videoInputRef.current.value = ''
+    setPublishProgress({ phase: 'creating_post' })
+    try {
+      const ok = await onPublish(text, files, setPublishProgress)
+      if (ok) {
+        setText('')
+        setAttachments((prev) => {
+          prev.forEach((p) => URL.revokeObjectURL(p.url))
+          return []
+        })
+        if (imageInputRef.current) imageInputRef.current.value = ''
+        if (videoInputRef.current) videoInputRef.current.value = ''
+      }
+    } finally {
+      setPublishProgress(null)
     }
   }
 
@@ -160,7 +191,7 @@ export function FeedComposer({
     if (videoInputRef.current) videoInputRef.current.value = ''
   }
 
-  const canPublish = !blocked && (text.trim().length > 0 || attachments.length > 0)
+  const canPublish = !blocked && (text.trim().length > 0 || attachments.length > 0) && !publishProgress
 
   const gridItems: FeedAttachmentItem[] = attachments.map(({ key, url, kind }) => ({ key, url, kind }))
 
@@ -184,8 +215,9 @@ export function FeedComposer({
             <div className="absolute left-2 top-1/2 z-[2] flex -translate-y-1/2 sm:left-3">
               <button
                 type="button"
+                disabled={busyUi}
                 onClick={() => onDismiss()}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-abnb-muted transition hover:bg-abnb-surfaceSoft hover:text-abnb-ink"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-abnb-muted transition hover:bg-abnb-surfaceSoft hover:text-abnb-ink disabled:opacity-45"
                 aria-label="Đóng"
               >
                 <X className="h-6 w-6" strokeWidth={2} />
@@ -243,7 +275,7 @@ export function FeedComposer({
                       />
                       <select
                         id={audId}
-                        disabled={blocked}
+                        disabled={busyUi}
                         value={selectedTreeId ?? ''}
                         onChange={(e) => {
                           const v = e.target.value
@@ -268,7 +300,7 @@ export function FeedComposer({
               id={`${baseId}-draft`}
               value={text}
               onChange={setText}
-              disabled={blocked}
+              disabled={busyUi}
               embeddedInModal
               draftRef={draftRef}
             />
@@ -279,7 +311,7 @@ export function FeedComposer({
               accept="image/*"
               multiple
               className="sr-only"
-              disabled={blocked}
+              disabled={busyUi}
               onChange={onPickImages}
             />
             <input
@@ -288,7 +320,7 @@ export function FeedComposer({
               accept="video/mp4,video/webm,video/quicktime,video/*,.mp4,.webm,.mov,.m4v"
               multiple
               className="sr-only"
-              disabled={blocked}
+              disabled={busyUi}
               onChange={onPickVideos}
             />
 
@@ -296,7 +328,7 @@ export function FeedComposer({
               <div className="relative mt-3 min-w-0 max-w-full overflow-x-hidden">
                 <button
                   type="button"
-                  disabled={blocked}
+                  disabled={busyUi}
                   onClick={() => clearAllAttachments()}
                   className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-abnb-surfaceCard/92 text-abnb-body shadow-abnb ring-1 ring-black/10 transition hover:bg-abnb-surfaceSoft"
                   title="Gỡ hết đính kèm"
@@ -310,6 +342,7 @@ export function FeedComposer({
           </div>
 
           <div className={`shrink-0 border-t border-abnb-hairlineSoft pb-5 pt-4 ${pad}`}>
+            {publishProgress ? <FeedComposerProgressBanner progress={publishProgress} /> : null}
             <div
               className="flex flex-wrap items-center justify-between gap-3 rounded-abnb-xl border border-abnb-hairlineSoft px-3 py-2.5 sm:px-4"
               aria-label="Đính kèm vào bài viết"
@@ -320,7 +353,7 @@ export function FeedComposer({
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
-                  disabled={blocked}
+                  disabled={busyUi}
                   onClick={() => imageInputRef.current?.click()}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/16 text-emerald-700 transition hover:bg-emerald-500/24 disabled:opacity-45 dark:bg-emerald-400/14 dark:text-emerald-200"
                   aria-label="Ảnh"
@@ -330,7 +363,7 @@ export function FeedComposer({
                 </button>
                 <button
                   type="button"
-                  disabled={blocked}
+                  disabled={busyUi}
                   onClick={() => videoInputRef.current?.click()}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/16 text-sky-800 transition hover:bg-sky-500/24 disabled:opacity-45 dark:bg-sky-400/14 dark:text-sky-100"
                   aria-label="Video"
@@ -347,10 +380,10 @@ export function FeedComposer({
               onClick={() => void submit()}
               className={`${role.btnPrimary} !mt-4 !flex !h-auto !min-h-[3rem] !w-full !rounded-abnb-xl !px-4 !py-3 !text-[16px] !font-semibold shadow-abnb disabled:opacity-50`}
             >
-              Đăng bài
+              {publishProgress ? 'Đang đăng…' : 'Đăng bài'}
             </button>
 
-            {!blocked ? (
+            {!busyUi ? (
               <p className={`${role.caption} mt-3 text-center normal-case leading-relaxed text-abnb-muted`}>
                 Ảnh chỉ là bản nháp trên trình duyệt — chỉ sau khi bấm{' '}
                 <span className="font-medium text-abnb-body/90">Đăng bài</span> mới gửi lên máy chủ.
@@ -391,7 +424,7 @@ export function FeedComposer({
                     />
                     <select
                       id={audId}
-                      disabled={blocked}
+                      disabled={busyUi}
                       value={selectedTreeId ?? ''}
                       onChange={(e) => {
                         const v = e.target.value
@@ -416,7 +449,7 @@ export function FeedComposer({
             id={`${baseId}-draft`}
             value={text}
             onChange={setText}
-            disabled={blocked}
+            disabled={busyUi}
             embeddedInModal={false}
             draftRef={draftRef}
           />
@@ -427,7 +460,7 @@ export function FeedComposer({
             accept="image/*"
             multiple
             className="sr-only"
-            disabled={blocked}
+            disabled={busyUi}
             onChange={onPickImages}
           />
           <input
@@ -436,7 +469,7 @@ export function FeedComposer({
             accept="video/mp4,video/webm,video/quicktime,video/*,.mp4,.webm,.mov,.m4v"
             multiple
             className="sr-only"
-            disabled={blocked}
+            disabled={busyUi}
             onChange={onPickVideos}
           />
 
@@ -444,7 +477,7 @@ export function FeedComposer({
             <div className="relative mt-3 min-w-0 max-w-full overflow-x-hidden">
               <button
                 type="button"
-                disabled={blocked}
+                disabled={busyUi}
                 onClick={() => clearAllAttachments()}
                 className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-abnb-surfaceCard/92 text-abnb-body shadow-abnb ring-1 ring-black/10 transition hover:bg-abnb-surfaceSoft"
                 title="Gỡ hết đính kèm"
@@ -456,6 +489,8 @@ export function FeedComposer({
             </div>
           ) : null}
 
+          {publishProgress ? <FeedComposerProgressBanner progress={publishProgress} /> : null}
+
           <div
             className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-abnb-xl border border-abnb-hairlineSoft px-3 py-2.5 sm:px-4"
             aria-label="Đính kèm vào bài viết"
@@ -466,7 +501,7 @@ export function FeedComposer({
             <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                disabled={blocked}
+                disabled={busyUi}
                 onClick={() => imageInputRef.current?.click()}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/16 text-emerald-700 transition hover:bg-emerald-500/24 disabled:opacity-45 dark:bg-emerald-400/14 dark:text-emerald-200"
                 aria-label="Ảnh"
@@ -476,7 +511,7 @@ export function FeedComposer({
               </button>
               <button
                 type="button"
-                disabled={blocked}
+                disabled={busyUi}
                 onClick={() => videoInputRef.current?.click()}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/16 text-sky-800 transition hover:bg-sky-500/24 disabled:opacity-45 dark:bg-sky-400/14 dark:text-sky-100"
                 aria-label="Video"
@@ -493,10 +528,10 @@ export function FeedComposer({
             onClick={() => void submit()}
             className={`${role.btnPrimary} !mt-4 !flex !h-auto !min-h-[3rem] !w-full !rounded-abnb-xl !px-4 !py-3 !text-[16px] !font-semibold shadow-abnb disabled:opacity-50`}
           >
-            Đăng bài
+            {publishProgress ? 'Đang đăng…' : 'Đăng bài'}
           </button>
 
-          {!blocked ? (
+          {!busyUi ? (
             <p className={`${role.caption} mt-3 text-center normal-case leading-relaxed text-abnb-muted`}>
               Ảnh chỉ là bản nháp trên trình duyệt — chỉ sau khi bấm{' '}
               <span className="font-medium text-abnb-body/90">Đăng bài</span> mới gửi lên máy chủ.
@@ -509,6 +544,66 @@ export function FeedComposer({
           ) : null}
         </div>
       )}
+    </div>
+  )
+}
+
+function formatXferBytes(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '—'
+  if (n < 1024) return `${Math.round(n)} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`
+}
+
+function FeedComposerProgressBanner({ progress }: { progress: FeedPublishProgress }) {
+  if (progress.phase === 'creating_post') {
+    return (
+      <div className="mb-4 rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-surfaceSoft px-3 py-2.5 text-[13px] text-abnb-body">
+        <p className="font-semibold text-abnb-ink">Đang tạo bài…</p>
+      </div>
+    )
+  }
+  if (progress.phase === 'saving_media') {
+    return (
+      <div className="mb-4 rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-surfaceSoft px-3 py-2.5 text-[13px] text-abnb-body">
+        <p className="font-semibold text-abnb-ink">Đang lưu ảnh/video vào bảng tin…</p>
+        <p className="mt-0.5 text-[12px] text-abnb-muted">
+          Đính kèm {progress.fileIndex + 1} / {progress.fileCount}
+        </p>
+      </div>
+    )
+  }
+  const pct = Math.min(100, Math.max(0, Math.round(progress.overall * 100)))
+  return (
+    <div className="mb-4 rounded-abnb-lg border border-abnb-hairlineSoft bg-abnb-surfaceSoft px-3 py-2.5 text-[13px] text-abnb-body">
+      <div className="flex justify-between gap-2 text-[12px] text-abnb-muted">
+        <span className="min-w-0 truncate font-semibold text-abnb-ink">
+          Đang tải lên{' '}
+          <span className="font-normal text-abnb-muted" title={progress.fileName}>
+            {progress.fileName}
+          </span>
+        </span>
+        <span className="shrink-0 tabular-nums">{pct}%</span>
+      </div>
+      <p className="mt-1 text-[11px] text-abnb-muted">
+        File {progress.fileIndex + 1}/{progress.fileCount} · {formatXferBytes(progress.loaded)} /{' '}
+        {formatXferBytes(progress.total)}
+      </p>
+      <div
+        className="mt-2 h-2 overflow-hidden rounded-full bg-abnb-hairlineSoft"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full rounded-full bg-abnb-primary transition-[width] duration-150 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-2 text-[11px] leading-snug text-abnb-muted">
+        Tiến trình chạy trong tab hiện tại — không đóng hay tải lại trang cho đến khi hoàn tất.
+      </p>
     </div>
   )
 }

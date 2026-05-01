@@ -6,6 +6,7 @@ import { role } from '../../design/roles'
 import { type FeedReactionKind } from './reactionKinds'
 import { FeedReactionBar } from './FeedReactionBar'
 import { getFeedMediaPublicUrl, type FeedCommentRow, type FeedPostState } from './feedQueries'
+import { useFeedMediaDisplayUrls } from './useFeedMediaDisplayUrls'
 import { FeedAttachmentGrid, type FeedAttachmentItem } from './FeedAttachmentGrid'
 import { FeedPostPhotoViewer } from './FeedPostPhotoViewer'
 import { FeedPostPhotoViewerSidebar } from './FeedPostPhotoViewerSidebar'
@@ -32,6 +33,7 @@ export const FeedPostCard = memo(function FeedPostCardInner({
 }) {
   const sb = getSupabase()
   const profile = post.profiles
+  const feedMediaUrls = useFeedMediaDisplayUrls(post.media)
   const initials = profile?.full_name?.trim()?.[0]?.toUpperCase() ?? '?'
   const [commentOpen, setCommentOpen] = useState(false)
   const [draftTop, setDraftTop] = useState('')
@@ -56,12 +58,13 @@ export const FeedPostCard = memo(function FeedPostCardInner({
   const attachmentItems = useMemo(() => {
     const items: FeedAttachmentItem[] = []
     for (const m of post.media) {
-      const url = getFeedMediaPublicUrl(m.storage_path)
+      const sp = m.storage_path.trim()
+      const url = feedMediaUrls[sp] ?? getFeedMediaPublicUrl(sp)
       if (!url) continue
       items.push({ key: m.id, url, kind: m.media_kind })
     }
     return items
-  }, [post.media])
+  }, [post.media, feedMediaUrls])
 
   async function react(kind: FeedReactionKind) {
     if (!sb || !currentUserId) return

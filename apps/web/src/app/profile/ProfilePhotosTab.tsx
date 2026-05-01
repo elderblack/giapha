@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { role } from '../../design/roles'
-import { getFeedMediaPublicUrl, loadMyPostsPage, type FeedPostState } from '../feed/feedQueries'
+import { getFamilyFeedMediaDisplayUrl } from '../feed/feedMediaDisplayUrl'
+import { loadMyPostsPage, type FeedPostState } from '../feed/feedQueries'
 
 const PAGE_SIZE = 15
 
@@ -14,25 +15,31 @@ type GridItem = {
   createdAt: string
 }
 
-function postsToImageItems(posts: FeedPostState[]): GridItem[] {
-  const out: GridItem[] = []
+async function postsToImageItems(posts: FeedPostState[]): Promise<GridItem[]> {
+  type Raw = Omit<GridItem, 'url'>
+  const raw: Raw[] = []
   for (const p of posts) {
     const label = p.tree_name?.trim() || 'Bảng tin dòng họ'
     const images = p.media.filter((m) => m.media_kind === 'image')
     for (const m of images) {
-      const url = getFeedMediaPublicUrl(m.storage_path)
-      if (!url) continue
-      out.push({
+      const storagePath = m.storage_path.trim()
+      if (!storagePath) continue
+      raw.push({
         key: `${p.id}-${m.id}`,
         postId: p.id,
-        storagePath: m.storage_path,
-        url,
+        storagePath,
         treeLabel: label,
         createdAt: p.created_at,
       })
     }
   }
-  return out
+  const rows = await Promise.all(
+    raw.map(async (r) => {
+      const url = await getFamilyFeedMediaDisplayUrl(r.storagePath)
+      return url ? { ...r, url } : null
+    }),
+  )
+  return rows.filter(Boolean) as GridItem[]
 }
 
 function groupByTree(items: GridItem[]): Map<string, GridItem[]> {
@@ -69,7 +76,7 @@ export function ProfilePhotosTab({ userId }: { userId: string }) {
       }
       try {
         const batch = await loadMyPostsPage(userId, offset, PAGE_SIZE)
-        const chunk = postsToImageItems(batch)
+        const chunk = await postsToImageItems(batch)
         if (reset) {
           setItems(chunk)
           nextOffsetRef.current = batch.length

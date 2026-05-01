@@ -1,12 +1,14 @@
-import { useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import type { FeedComposerTree } from './FeedComposer'
 import { FeedComposer } from './FeedComposer'
 import { FeedComposerCollapsed } from './FeedComposerCollapsed'
 import { FeedComposerModal } from './FeedComposerModal'
 
+import type { FeedPublishOnProgress } from './publishFeedPost'
+
 type Props = {
   disabled?: boolean
-  onPublish: (body: string, files: File[]) => Promise<boolean>
+  onPublish: (body: string, files: File[], onProgress?: FeedPublishOnProgress) => Promise<boolean>
   trees: FeedComposerTree[]
   selectedTreeId: string | null
   onSelectedTreeChange: (treeId: string) => void
@@ -16,10 +18,15 @@ type Props = {
 /** Thanh thu gọn trên Feed; bấm hoặc icon mở modal giống Facebook. */
 export function FeedComposerGate(props: Props) {
   const [open, setOpen] = useState(false)
+  const [publishingModal, setPublishingModal] = useState(false)
   const titleId = useId()
 
-  async function wrappedPublish(body: string, files: File[]) {
-    const ok = await props.onPublish(body, files)
+  const onPublishingChange = useCallback((p: boolean) => {
+    setPublishingModal(p)
+  }, [])
+
+  async function wrappedPublish(body: string, files: File[], onProgress?: FeedPublishOnProgress) {
+    const ok = await props.onPublish(body, files, onProgress)
     if (ok) setOpen(false)
     return ok
   }
@@ -35,10 +42,16 @@ export function FeedComposerGate(props: Props) {
     <>
       <FeedComposerCollapsed disabled={blocking} onOpen={() => setOpen(true)} />
 
-      <FeedComposerModal open={open} onClose={() => setOpen(false)} titleId={titleId}>
+      <FeedComposerModal
+        open={open}
+        preventClose={publishingModal}
+        onClose={() => setOpen(false)}
+        titleId={titleId}
+      >
         <FeedComposer
           {...props}
           onPublish={wrappedPublish}
+          onPublishingChange={onPublishingChange}
           embeddedInModal
           onDismiss={() => setOpen(false)}
           composerTitleId={titleId}

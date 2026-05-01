@@ -18,7 +18,7 @@ import {
 } from '@expo-google-fonts/inter'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Linking from 'expo-linking'
-import { Audio } from 'expo-av'
+import { setAudioModeAsync } from 'expo-audio'
 import { useEffect, useMemo } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
@@ -102,11 +102,11 @@ function AuthGateNav() {
   }, [loading])
 
   useEffect(() => {
-    // expo-av SDK 54: log deprecation — khi ổn định có thể chuyển silent mode sang expo-audio.
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      staysActiveInBackground: false,
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      allowsRecording: false,
+      shouldPlayInBackground: false,
+      interruptionMode: 'mixWithOthers',
     }).catch(() => {})
   }, [])
 

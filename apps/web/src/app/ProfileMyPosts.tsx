@@ -7,7 +7,7 @@ import { FeedPostCard } from './feed/FeedPostCard'
 import { loadMyPostsPage, loadUserTreesForComposer, reloadFeedPostsByIds, type FeedPostState } from './feed/feedQueries'
 import { readStoredProfileTreeId } from './feed/FeedComposer'
 import { FeedComposerGate } from './feed/FeedComposerGate'
-import { publishFamilyFeedPost } from './feed/publishFeedPost'
+import { publishFamilyFeedPost, type FeedPublishOnProgress } from './feed/publishFeedPost'
 
 const PAGE_SIZE = 12
 
@@ -105,7 +105,11 @@ export function ProfileMyPosts({
   )
 
   const publishFromProfile = useCallback(
-    async (bodyDraft: string, files: File[]): Promise<boolean> => {
+    async (
+      bodyDraft: string,
+      files: File[],
+      onProgress?: FeedPublishOnProgress,
+    ): Promise<boolean> => {
       if (!selectedPostTreeId) return false
       setPublishBusy(true)
       try {
@@ -114,8 +118,12 @@ export function ProfileMyPosts({
           authorId: userId,
           bodyDraft,
           files,
+          onProgress,
         })
-        if (!r.ok) return false
+        if (r.ok === false) {
+          window.alert(r.error ?? 'Không đăng được bài.')
+          return false
+        }
         await loadBatch(true)
         return true
       } finally {

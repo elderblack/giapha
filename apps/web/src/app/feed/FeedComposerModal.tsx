@@ -7,9 +7,11 @@ type Props = {
   children: React.ReactNode
   /** id cho tiêu đề dialog (accessibility) */
   titleId?: string
+  /** Đúng khi đang đăng bài — chặn đóng nhầm backdrop / Escape. */
+  preventClose?: boolean
 }
 
-export function FeedComposerModal({ open, onClose, children, titleId }: Props) {
+export function FeedComposerModal({ open, onClose, children, titleId, preventClose = false }: Props) {
   const prevOverflow = useRef<string | null>(null)
 
   useEffect(() => {
@@ -17,6 +19,7 @@ export function FeedComposerModal({ open, onClose, children, titleId }: Props) {
     prevOverflow.current = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
+      if (preventClose) return
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
@@ -24,7 +27,7 @@ export function FeedComposerModal({ open, onClose, children, titleId }: Props) {
       document.body.style.overflow = prevOverflow.current ?? ''
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, onClose])
+  }, [open, onClose, preventClose])
 
   if (!open) return null
 
@@ -33,6 +36,7 @@ export function FeedComposerModal({ open, onClose, children, titleId }: Props) {
       className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:items-center sm:p-4"
       role="presentation"
       onClick={(e) => {
+        if (preventClose) return
         if (e.target === e.currentTarget) onClose()
       }}
     >

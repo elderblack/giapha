@@ -17,11 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
 import { usePalette } from '@/hooks/usePalette'
-import {
-  getFeedMediaPublicUrl,
-  loadMyPostsPage,
-  type FeedPostState,
-} from '@/lib/feed/feedQueries'
+import { loadMyPostsPage, type FeedPostState } from '@/lib/feed/feedQueries'
+import { getFamilyFeedMediaDisplayUrl } from '@/lib/feed/feedMediaDisplayUrl'
 import { Font } from '@/theme/typography'
 
 const PAGE_SIZE = 15
@@ -33,23 +30,30 @@ type GridItem = {
   treeLabel: string
 }
 
-function postsToImageItems(posts: FeedPostState[]): GridItem[] {
-  const out: GridItem[] = []
+async function postsToImageItems(posts: FeedPostState[]): Promise<GridItem[]> {
+  type Raw = { key: string; postId: string; storage_path: string; treeLabel: string }
+  const raw: Raw[] = []
   for (const p of posts) {
     const label = p.tree_name?.trim() || 'Bảng tin dòng họ'
     const images = p.media.filter((m) => m.media_kind === 'image')
     for (const m of images) {
-      const url = getFeedMediaPublicUrl(m.storage_path)
-      if (!url) continue
-      out.push({
+      const path = m.storage_path?.trim()
+      if (!path) continue
+      raw.push({
         key: `${p.id}-${m.id}`,
         postId: p.id,
-        url,
+        storage_path: path,
         treeLabel: label,
       })
     }
   }
-  return out
+  const settled = await Promise.all(
+    raw.map(async (r) => {
+      const url = await getFamilyFeedMediaDisplayUrl(r.storage_path)
+      return url ? { ...r, url } : null
+    }),
+  )
+  return settled.filter(Boolean) as GridItem[]
 }
 
 function groupByTree(items: GridItem[]): Map<string, GridItem[]> {
@@ -98,7 +102,7 @@ export function ProfilePhotosTab(props: {
       }
       try {
         const batch = await loadMyPostsPage(userId, offset, PAGE_SIZE)
-        const chunk = postsToImageItems(batch)
+        const chunk = await postsToImageItems(batch)
         if (reset) {
           setItems(chunk)
           nextOffsetRef.current = batch.length

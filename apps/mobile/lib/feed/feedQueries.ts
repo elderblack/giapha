@@ -342,10 +342,10 @@ export function feedPostsFingerprint(posts: FeedPostState[]): string {
           return `${c.id}:${c.body.length}:${rrx}:${rids}`
         })
         .join(';')
-      const mids = p.media
-        .map((m) => m.id)
-        .sort()
-        .join(',')
+      const mids = [...p.media]
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id.localeCompare(b.id))
+        .map((m) => `${m.id}:${m.media_kind}:${m.storage_path}`)
+        .join('|')
       return `${p.id}\t${p.body ?? ''}\t${mids}\t${rx}\t${cx}`
     })
     .join('\n')

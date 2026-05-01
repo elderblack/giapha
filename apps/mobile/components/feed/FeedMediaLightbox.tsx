@@ -1,11 +1,10 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
-import { ResizeMode, Video } from 'expo-av'
+import { LightboxVideoSlide } from '@/components/feed/expoFeedVideo'
+import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   FlatList,
-  Image,
-  InteractionManager,
   Modal,
   Pressable,
   StatusBar,
@@ -72,10 +71,8 @@ export const FeedMediaLightbox = memo(function FeedMediaLightboxInner({
 
   useEffect(() => {
     if (!visible || !slides.length) return
-    const h = InteractionManager.runAfterInteractions(() => {
-      prefetchFeedLightboxSlides(slides)
-    })
-    return () => h.cancel()
+    const id = requestAnimationFrame(() => prefetchFeedLightboxSlides(slides))
+    return () => cancelAnimationFrame(id)
   }, [visible, slides])
 
   const scrollToIdx = useCallback(
@@ -95,7 +92,7 @@ export const FeedMediaLightbox = memo(function FeedMediaLightboxInner({
 
   const slideH = Math.max(1, screenH)
 
-  /** Chừa chỗ đáy để không che native controls (mute/fullscreen…) của expo-av. */
+  /** Chừa chỗ đáy để không che native controls (mute/fullscreen…) của expo-video. */
   const videoBottomReserve = showChrome
     ? Math.min(Math.max(insets.bottom, 12) + 172, Math.floor(screenH * 0.42))
     : 0
@@ -124,7 +121,7 @@ export const FeedMediaLightbox = memo(function FeedMediaLightboxInner({
           onPress={() => setShowChrome((s) => !s)}
           accessibilityLabel="Ẩn hoặc hiện giao diện xem ảnh"
         >
-          <Image source={{ uri: item.uri }} style={styles.fullImage} resizeMode="contain" />
+          <Image source={{ uri: item.uri }} style={styles.fullImage} contentFit="contain" />
         </Pressable>
       ) : (
         <View
@@ -133,15 +130,11 @@ export const FeedMediaLightbox = memo(function FeedMediaLightboxInner({
             { width: screenW, height: slideH, paddingTop: videoTopPad, paddingBottom: videoBottomReserve },
           ]}
         >
-          <Video
-            source={{ uri: item.uri }}
-            style={styles.videoInSlide}
-            resizeMode={ResizeMode.CONTAIN}
-            useNativeControls={showChrome}
-            shouldPlay={visible && index === page}
-            isMuted={false}
-            isLooping
-            pointerEvents={showChrome ? 'auto' : 'none'}
+          <LightboxVideoSlide
+            uri={item.uri}
+            style={[styles.videoInSlide, { pointerEvents: showChrome ? 'auto' : 'none' }]}
+            play={visible && index === page}
+            showChrome={showChrome}
           />
           {showChrome ? (
             <Pressable
@@ -166,7 +159,17 @@ export const FeedMediaLightbox = memo(function FeedMediaLightboxInner({
           )}
         </View>
       ),
-    [screenW, slideH, showChrome, visible, page, videoBottomReserve, videoTopPad, insets, screenH],
+    [
+      screenW,
+      slideH,
+      showChrome,
+      visible,
+      page,
+      videoBottomReserve,
+      videoTopPad,
+      insets,
+      screenH,
+    ],
   )
 
   if (!slides.length) return null

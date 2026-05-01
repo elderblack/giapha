@@ -1,8 +1,9 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
-import { ResizeMode, Video } from 'expo-av'
+import { FeedInlineDetailVideo, FeedMutedCoverLoopVideo } from '@/components/feed/expoFeedVideo'
+import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle, useWindowDimensions } from 'react-native'
+import { Alert, Pressable, StyleSheet, View, type StyleProp, type ViewStyle, useWindowDimensions } from 'react-native'
 
 import { FloatingFeedReactionPicker, type ReactionAnchorRect } from '@/components/feed/FloatingFeedReactionPicker'
 import { FeedMediaLightbox } from '@/components/feed/FeedMediaLightbox'
@@ -17,6 +18,7 @@ import {
 } from '@/lib/feed/reactionKinds'
 import { formatFeedRelativeVi } from '@/lib/feed/feedDate'
 import { useFeedImageLayoutMobile } from '@/hooks/useFeedImageLayoutMobile'
+import { useFeedMediaDisplayUrlMap } from '@/hooks/useFeedMediaDisplayUrlMap'
 import { usePalette } from '@/hooks/usePalette'
 import { Font } from '@/theme/typography'
 
@@ -73,6 +75,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
 }: FeedPostBodyMobileProps) {
   const p = usePalette()
   const profile = post.profiles
+  const feedMediaUrls = useFeedMediaDisplayUrlMap(post.media ?? [])
   const initials =
     profile?.full_name
       ?.trim()
@@ -103,11 +106,14 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
     return [...post.media]
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       .map((m) => {
-        const url = getFeedMediaPublicUrl(m.storage_path)
+        const url =
+          feedMediaUrls[m.storage_path.trim()] ??
+          getFeedMediaPublicUrl(m.storage_path.trim()) ??
+          null
         return url ? ({ ...m, url } as MediaPreview) : null
       })
       .filter(Boolean) as MediaPreview[]
-  }, [post.media])
+  }, [post.media, feedMediaUrls])
 
   const onlyImages =
     sortedPreviews.length > 0 && sortedPreviews.every((x) => x.media_kind === 'image')
@@ -200,7 +206,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
         >
           <View style={[styles.avatar, { borderColor: p.border }]}>
             {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} contentFit="cover" />
             ) : (
               <LinearGradient colors={[p.accent, '#C026D3']} style={styles.avatarImg} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }}>
                 <Text style={[styles.initialsTxt, { fontFamily: Font.bold }]}>{initials}</Text>
@@ -245,14 +251,10 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                 style={{ alignSelf: 'center', borderRadius: 10, overflow: 'hidden' }}
               >
                 <View style={{ width: imageMaxW, height: feedPosterVideoTileH, backgroundColor: '#000' }}>
-                  <Video
-                    source={{ uri: sortedPreviews[0].url }}
+                  <FeedMutedCoverLoopVideo
+                    uri={sortedPreviews[0].url}
+                    playing={feedPosterViewportAutoplay}
                     style={styles.mosaicCover}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={feedPosterViewportAutoplay}
-                    isMuted
-                    isLooping={feedPosterViewportAutoplay}
-                    useNativeControls={false}
                   />
                   <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.videoPosterOverlay]}>
                     {feedPosterViewportAutoplay ? null : (
@@ -275,14 +277,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
               </Pressable>
             ) : (
               <View style={[styles.videoShell, { width: imageMaxW, borderColor: p.border }]}>
-                <Video
-                  source={{ uri: sortedPreviews[0].url }}
-                  style={styles.videoPlayer}
-                  useNativeControls
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay={false}
-                  isMuted={false}
-                />
+                <FeedInlineDetailVideo uri={sortedPreviews[0].url} style={styles.videoPlayer} />
               </View>
             )
           ) : onlyImages && sortedPreviews.length === 1 ? (
@@ -302,10 +297,10 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                     backgroundColor: p.canvasMuted,
                   },
                 ]}
-                resizeMode="contain"
-                onLoad={(ev) => {
-                  const src = ev.nativeEvent.source
-                  if (src?.width && src?.height) setSoloImageDims({ w: src.width, h: src.height })
+                contentFit="contain"
+                onLoad={(e) => {
+                  const { width, height } = e.source
+                  if (width && height) setSoloImageDims({ w: width, h: height })
                 }}
               />
             </Pressable>
@@ -322,7 +317,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                     onPress={() => openViewerAt(tileIndex)}
                     style={style}
                   >
-                    <Image source={{ uri: m.url }} style={styles.mosaicCover} resizeMode="cover" accessibilityIgnoresInvertColors />
+                    <Image source={{ uri: m.url }} style={styles.mosaicCover} contentFit="cover" />
                   </Pressable>
                 )
               }
@@ -395,18 +390,14 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                       accessibilityLabel={onOpenVideoReels ? 'Lướt clip hoặc giữ để phóng to' : 'Xem video phóng to'}
                       style={[styles.videoShell, { width: imageMaxW, height: feedPosterVideoTileH, borderColor: p.border }]}
                     >
-                      <Video
-                        source={{ uri: m.url }}
+                      <FeedMutedCoverLoopVideo
+                        uri={m.url}
+                        playing={
+                          Boolean(
+                            feedPosterViewportAutoplay && mediaIdx === primaryVideoSortedIndex,
+                          )
+                        }
                         style={styles.mosaicCover}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={
-                          feedPosterViewportAutoplay && mediaIdx === primaryVideoSortedIndex
-                        }
-                        isMuted
-                        isLooping={
-                          feedPosterViewportAutoplay && mediaIdx === primaryVideoSortedIndex
-                        }
-                        useNativeControls={false}
                       />
                       <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, styles.videoPosterOverlay]}>
                         {feedPosterViewportAutoplay && mediaIdx === primaryVideoSortedIndex ? null : (
@@ -428,14 +419,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                     </Pressable>
                   ) : (
                     <View key={m.id} style={[styles.videoShell, { width: imageMaxW, borderColor: p.border }]}>
-                      <Video
-                        source={{ uri: m.url }}
-                        style={styles.videoPlayer}
-                        useNativeControls
-                        resizeMode={ResizeMode.CONTAIN}
-                        shouldPlay={false}
-                        isMuted={false}
-                      />
+                      <FeedInlineDetailVideo uri={m.url} style={styles.videoPlayer} />
                     </View>
                   )
                 ) : (
@@ -455,7 +439,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                           backgroundColor: p.canvasMuted,
                         },
                       ]}
-                      resizeMode="contain"
+                      contentFit="contain"
                     />
                   </Pressable>
                 ),

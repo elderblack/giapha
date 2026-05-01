@@ -1,8 +1,11 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
+import * as ImagePicker from 'expo-image-picker'
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -19,7 +22,9 @@ import { useAuth } from '@/context/useAuth'
 import { usePalette } from '@/hooks/usePalette'
 import { markFamilyChatConversationRead } from '@/lib/chat/markRead'
 import type { ChatMessage } from '@/lib/chat/types'
+import { uploadChatImageMobile } from '@/lib/chat/uploadChatImageMobile'
 import { getSupabase } from '@/lib/supabase'
+import { useChatAttachmentUrl } from '@/hooks/useChatAttachmentUrl'
 import { Font } from '@/theme/typography'
 
 export default function ChatConversationScreen() {
@@ -179,6 +184,54 @@ export default function ChatConversationScreen() {
     setDraft('')
   }
 
+  async function pickAndSendImage() {
+    if (!sb || !uid || !conversationId || sending) return
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert('Quyền truy cập', 'Cần quyền thư viện ảnh để gửi hình trong chat.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.92,
+      copyToCacheDirectory: true,
+    })
+    if (result.canceled || !result.assets[0]?.uri) return
+    let uri = result.assets[0].uri.trim()
+    let mime = result.assets[0].mimeType ?? null
+    try {
+      const out = await manipulateAsync(uri, [], { compress: 0.9, format: SaveFormat.JPEG })
+      uri = out.uri
+      mime = 'image/jpeg'
+    } catch {
+      /* giữ URI gốc */
+    }
+
+    setSending(true)
+    const up = await uploadChatImageMobile({
+      conversationId,
+      userId: uid,
+      fileUri: uri,
+      mimeHint: mime,
+    })
+    if (!up.ok) {
+      setSending(false)
+      Alert.alert('Không gửi được ảnh', up.error)
+      return
+    }
+    const { error } = await sb.from('family_chat_messages').insert({
+      conversation_id: conversationId,
+      sender_id: uid,
+      attachment_path: up.storagePath,
+      attachment_kind: 'image',
+    })
+    setSending(false)
+    if (error) {
+      Alert.alert('Không gửi được ảnh', error.message)
+    }
+  }
+
   if (!conversationId) {
     return (
       <View style={[styles.center, { backgroundColor: p.canvas }]}>
@@ -213,13 +266,21 @@ export default function ChatConversationScreen() {
                   senderName={prof?.full_name}
                   senderAvatarUrl={isMine ? myAvatarUrl : prof?.avatar_url ?? null}
                   p={p}
-                  sb={sb}
                 />
               )
             }}
           />
         )}
         <View style={[styles.composerRow, { borderTopColor: p.border, backgroundColor: p.surfaceElevated }]}>
+          <Pressable
+            accessibilityLabel="Gửi ảnh"
+            hitSlop={8}
+            onPress={() => void pickAndSendImage()}
+            disabled={sending}
+            style={[styles.attachBtn, { opacity: sending ? 0.45 : 1 }]}
+          >
+            <FontAwesome name="image" size={22} color={p.accent} />
+          </Pressable>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -250,14 +311,12 @@ function MessageBubble(props: {
   senderName?: string
   senderAvatarUrl?: string | null
   p: ReturnType<typeof usePalette>
-  sb: ReturnType<typeof getSupabase>
 }) {
-  const { msg, isMine, senderName, senderAvatarUrl, p, sb } = props
+  const { msg, isMine, senderName, senderAvatarUrl, p } = props
   const bg = isMine ? p.accent : p.canvasMuted
-  const imgUri =
-    msg.attachment_kind === 'image' && msg.attachment_path && sb
-      ? sb.storage.from('family-chat-media').getPublicUrl(msg.attachment_path).data.publicUrl
-      : null
+  const imgUri = useChatAttachmentUrl(
+    msg.attachment_kind === 'image' ? msg.attachment_path : null,
+  )
 
   const avatar = (
     <View style={[styles.msgAvatarWrap, { backgroundColor: p.accentMuted }]}>
@@ -363,6 +422,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
+  attachBtn: {
+    width: 40,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 1,

@@ -6,9 +6,10 @@ import { role } from '../../design/roles'
 import { TreePageIntro } from '../tree/TreeChrome'
 import { TreeFeedSkeleton } from '../tree/TreeTabSkeletons'
 import { useTreeWorkspace } from '../tree/treeWorkspaceContext'
-import { loadFeedTree, type FeedPostState, feedPostsFingerprint, getFeedMediaPublicUrl } from './feedQueries'
+import { getFamilyFeedMediaDisplayUrl } from './feedMediaDisplayUrl'
+import { loadFeedTree, type FeedPostState, feedPostsFingerprint } from './feedQueries'
 import { FeedComposerGate } from './FeedComposerGate'
-import { publishFamilyFeedPost } from './publishFeedPost'
+import { publishFamilyFeedPost, type FeedPublishOnProgress } from './publishFeedPost'
 import { FeedPostCard } from './FeedPostCard'
 
 /** Cache trong phiên (ở lại khi đổi tab trong cùng dòng họ). */
@@ -121,18 +122,20 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
 
   useEffect(() => {
     if (!posts?.length) return
-    const urls: string[] = []
-    for (const p of posts.slice(0, 8)) {
-      const first = p.media[0]
-      if (!first || first.media_kind !== 'image') continue
-      const u = getFeedMediaPublicUrl(first.storage_path)
-      if (u) urls.push(u)
-    }
-    for (const u of urls) {
-      const img = new Image()
-      img.decoding = 'async'
-      img.src = u
-    }
+    void (async () => {
+      const urls: string[] = []
+      for (const p of posts.slice(0, 8)) {
+        const first = p.media[0]
+        if (!first || first.media_kind !== 'image') continue
+        const u = await getFamilyFeedMediaDisplayUrl(first.storage_path.trim())
+        if (u) urls.push(u)
+      }
+      for (const u of urls) {
+        const img = new Image()
+        img.decoding = 'async'
+        img.src = u
+      }
+    })()
   }, [posts])
 
   useEffect(() => {
@@ -179,7 +182,11 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
     }
   }, [sb, treeId, scheduleRefresh])
 
-  async function publishPost(bodyDraft: string, files: File[]): Promise<boolean> {
+  async function publishPost(
+    bodyDraft: string,
+    files: File[],
+    onProgress?: FeedPublishOnProgress,
+  ): Promise<boolean> {
     if (!treeId || !uid) return false
     setBusy(true)
     try {
@@ -188,8 +195,12 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
         authorId: uid,
         bodyDraft,
         files,
+        onProgress,
       })
-      if (!r.ok) return false
+      if (r.ok === false) {
+        window.alert(r.error ?? 'Không đăng được bài.')
+        return false
+      }
       await refresh()
       return true
     } finally {

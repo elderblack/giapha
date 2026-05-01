@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
-import { ResizeMode, Video } from 'expo-av'
+import { FeedReelPlayer } from '@/components/feed/expoFeedVideo'
 import { LinearGradient } from 'expo-linear-gradient'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { Image, Pressable, StyleSheet, View } from 'react-native'
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '@/components/Themed'
 import type { FeedPostState } from '@/lib/feed/feedQueries'
 import { getFeedMediaPublicUrl } from '@/lib/feed/feedQueries'
+import { useFeedMediaDisplayUrlMap } from '@/hooks/useFeedMediaDisplayUrlMap'
 import { formatFeedRelativeVi } from '@/lib/feed/feedDate'
 import {
   FEED_REACTION_EMOJI,
@@ -42,12 +43,16 @@ export const FeedReelItem = memo(function FeedReelItemInner({
   const mineReact = post.reactions.find((r) => r.user_id === currentUserId)
   const [reactBusy, setReactBusy] = useState(false)
 
-  const videoUrl = useMemo(() => {
+  const videoPath = useMemo(() => {
     const sorted = [...post.media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const v = sorted.find((m) => m.media_kind === 'video')
-    if (!v) return null
-    return getFeedMediaPublicUrl(v.storage_path)
+    return sorted.find((m) => m.media_kind === 'video')?.storage_path?.trim() ?? null
   }, [post.media])
+
+  const reelMediaUrls = useFeedMediaDisplayUrlMap(videoPath ? [{ storage_path: videoPath }] : [])
+
+  const videoUrl = videoPath
+    ? reelMediaUrls[videoPath] ?? getFeedMediaPublicUrl(videoPath)
+    : null
 
   const initials =
     profile?.full_name
@@ -90,15 +95,7 @@ export const FeedReelItem = memo(function FeedReelItemInner({
 
   return (
     <View style={[styles.page, { height }]}>
-      <Video
-        source={{ uri: videoUrl }}
-        style={styles.video}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay={isActive}
-        isLooping
-        isMuted={false}
-        useNativeControls={false}
-      />
+      <FeedReelPlayer uri={videoUrl} isActive={isActive} style={styles.video} />
 
       <LinearGradient colors={['rgba(0,0,0,0.55)', 'transparent']} style={styles.gradTop} pointerEvents="none" />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={styles.gradBot} pointerEvents="none" />

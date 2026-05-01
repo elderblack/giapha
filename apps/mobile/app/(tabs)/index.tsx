@@ -4,17 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  InteractionManager,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useIsFocused } from '@react-navigation/native'
 
@@ -176,7 +166,7 @@ export default function HomeScreen() {
     }
   }, [sb, user?.id])
 
-  const refreshFeed = useCallback(async () => {
+  const refreshFeed = useCallback(async (opts?: { force?: boolean }) => {
     if (!sb || !treeId) {
       setPosts(treeId === null ? [] : null)
       return
@@ -185,7 +175,13 @@ export default function HomeScreen() {
     try {
       const next = await loadFeedTree(treeId)
       setPosts((prev) => {
-        if (prev != null && feedPostsFingerprint(prev) === feedPostsFingerprint(next)) return prev
+        if (
+          !opts?.force &&
+          prev != null &&
+          feedPostsFingerprint(prev) === feedPostsFingerprint(next)
+        ) {
+          return prev
+        }
         return next
       })
     } catch {
@@ -205,19 +201,15 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!posts?.length) return
-    const h = InteractionManager.runAfterInteractions(() => {
-      prefetchFeedTreeMedia(posts)
-    })
-    return () => h.cancel()
+    const id = requestAnimationFrame(() => prefetchFeedTreeMedia(posts))
+    return () => cancelAnimationFrame(id)
   }, [posts])
 
   useFocusEffect(
     useCallback(() => {
       if (!posts?.length) return
-      const h = InteractionManager.runAfterInteractions(() => {
-        prefetchFeedTreeMedia(posts)
-      })
-      return () => h.cancel()
+      const id = requestAnimationFrame(() => prefetchFeedTreeMedia(posts))
+      return () => cancelAnimationFrame(id)
     }, [posts]),
   )
 
@@ -251,6 +243,11 @@ export default function HomeScreen() {
         { event: '*', schema: 'public', table: 'family_feed_comments' },
         () => scheduleRefreshDebounced(handleFeedReload),
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'family_feed_post_media' },
+        () => scheduleRefreshDebounced(handleFeedReload),
+      )
       .subscribe()
 
     return () => {
@@ -262,14 +259,21 @@ export default function HomeScreen() {
     if (!treeId || !user?.id) return { ok: false as const, error: 'Chưa có dòng họ hoặc chưa đăng nhập.' }
     setPublishBusy(true)
     try {
+      if (__DEV__) {
+        console.log('[home-feed] publishFromModal → publishFamilyFeedPostMobile', {
+          treeId,
+          assets: assets.length,
+        })
+      }
       const r = await publishFamilyFeedPostMobile({
         treeId,
         authorId: user.id,
         bodyDraft,
         assets,
       })
+      if (__DEV__) console.log('[home-feed] publish result', r)
       if (!r.ok) return { ok: false as const, error: r.error }
-      await refreshFeed()
+      await refreshFeed({ force: true })
       return { ok: true as const }
     } finally {
       setPublishBusy(false)

@@ -1,6 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
 import * as ImagePicker from 'expo-image-picker'
-import { ResizeMode, Video } from 'expo-av'
+import { ComposeVideoThumbnail } from '@/components/feed/expoFeedVideo'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -92,7 +92,7 @@ export function FeedComposeModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       ...PICKER_BASE,
       ...PICKER_IOS_COMPAT,
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
       selectionLimit: 8,
     })
@@ -110,7 +110,7 @@ export function FeedComposeModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       ...PICKER_BASE,
       ...PICKER_IOS_COMPAT,
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['videos'],
       allowsMultipleSelection: true,
       selectionLimit: 4,
     })
@@ -130,7 +130,16 @@ export function FeedComposeModal({
   }, [visible, initialLibrary, busy, pickPhotos, pickVideos])
 
   const submit = async () => {
+    if (__DEV__) {
+      console.log('[feed-compose] submit', {
+        draftLen: draft.trim().length,
+        assetCount: assets.length,
+        assetTypes: assets.map((a) => a.type ?? null),
+        mimeTypes: assets.map((a) => a.mimeType ?? null),
+      })
+    }
     const result = await onPublish(draft, assets)
+    if (__DEV__) console.log('[feed-compose] result', result)
     if (result.ok) {
       resetLocal()
       handleClose()
@@ -257,14 +266,7 @@ export function FeedComposeModal({
                   <View key={`${a.uri}-${idx}`} style={styles.thumbWrap}>
                     {isVideo ? (
                       <View style={styles.thumbVidBox}>
-                        <Video
-                          source={{ uri: a.uri }}
-                          style={styles.thumb}
-                          resizeMode={ResizeMode.COVER}
-                          shouldPlay={false}
-                          isMuted
-                          useNativeControls={false}
-                        />
+                        <ComposeVideoThumbnail uri={a.uri} style={styles.thumb} />
                         <View style={[styles.playBadge, { backgroundColor: `${p.accent}E6` }]}>
                           <FontAwesome name="film" color="#FFF" size={14} />
                         </View>

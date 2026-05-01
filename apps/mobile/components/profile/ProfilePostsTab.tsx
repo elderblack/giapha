@@ -136,12 +136,19 @@ export function ProfilePostsTab(props: {
       if (!viewerUserId || !selectedPostTreeId) return { ok: false, error: 'Chưa chọn dòng họ.' }
       setPublishBusy(true)
       try {
+        if (__DEV__) {
+          console.log('[profile-feed] publish → publishFamilyFeedPostMobile', {
+            treeId: selectedPostTreeId,
+            assetCount: assets.length,
+          })
+        }
         const r = await publishFamilyFeedPostMobile({
           treeId: selectedPostTreeId,
           authorId: viewerUserId,
           bodyDraft,
           assets,
         })
+        if (__DEV__) console.log('[profile-feed] publish result', r)
         if (!r.ok) return { ok: false, error: r.error }
         await loadBatch(true)
         return { ok: true }

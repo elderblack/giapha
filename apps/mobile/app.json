@@ -40,7 +40,12 @@
           "photosPermission": "Ứng dụng cần ảnh để chia sẻ lên bảng tin đồng bộ web.",
           "cameraPermission": "Ứng dụng có thể mở camera khi đăng nội dung họ tộc."
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-font",
+      "expo-video",
+      "expo-web-browser",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
