@@ -2,7 +2,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome'
 import * as ImagePicker from 'expo-image-picker'
 import { ResizeMode, Video } from 'expo-av'
 import { LinearGradient } from 'expo-linear-gradient'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,25 @@ type DraftAsset = ImagePicker.ImagePickerAsset
 
 export type FeedComposeTreeOption = { id: string; name: string }
 
+export type FeedComposePublishResult = { ok: true } | { ok: false; error: string }
+
+const PICKER_BASE = {
+  allowsEditing: false,
+  copyToCacheDirectory: true,
+  quality: 0.88 as const,
+  videoMaxDuration: 180,
+  videoExportPreset: ImagePicker.VideoExportPreset.MEDIUM_QUALITY,
+} as const
+
+/** iOS: tránh HEIC — JPEG/PNG tương thích web & RN Image từ URL. */
+const PICKER_IOS_COMPAT =
+  Platform.OS === 'ios'
+    ? ({
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      } satisfies Partial<ImagePicker.ImagePickerOptions>)
+    : ({} satisfies Partial<ImagePicker.ImagePickerOptions>)
+
 export function FeedComposeModal({
   visible,
   onClose,
@@ -35,21 +54,24 @@ export function FeedComposeModal({
   trees,
   selectedTreeId,
   onTreeChange,
+  initialLibrary = null,
 }: {
   visible: boolean
   onClose: () => void
   busy: boolean
-  onPublish: (body: string, assets: DraftAsset[]) => Promise<boolean>
+  onPublish: (body: string, assets: DraftAsset[]) => Promise<FeedComposePublishResult>
   avatarUrl: string | null
   initials: string
-  /** Khi có (vd. đăng từ hồ sơ): chọn dòng họ đích. Không truyền = một dòng họ như Trang nhà. */
   trees?: FeedComposeTreeOption[]
   selectedTreeId?: string | null
   onTreeChange?: (treeId: string) => void
+  /** Khi mở modal: tự mở thư viện (một lần) — ví dụ lối tắt «Clip». */
+  initialLibrary?: 'all' | 'video' | null
 }) {
   const p = usePalette()
   const [draft, setDraft] = useState('')
   const [assets, setAssets] = useState<DraftAsset[]>([])
+  const autoPickDoneRef = useRef(false)
 
   const resetLocal = useCallback(() => {
     setDraft('')
@@ -61,27 +83,59 @@ export function FeedComposeModal({
     onClose()
   }, [onClose, resetLocal])
 
-  const pickPhotos = async () => {
+  const pickPhotos = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (!perm.granted) return
+    if (!perm.granted) {
+      Alert.alert('Quyền truy cập', 'Cần quyền thư viện ảnh để đính kèm media.')
+      return
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
+      ...PICKER_BASE,
+      ...PICKER_IOS_COMPAT,
       mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: false,
       allowsMultipleSelection: true,
-      quality: 0.88,
-      videoMaxDuration: 120,
       selectionLimit: 8,
     })
     if (!result.canceled && result.assets.length) {
       setAssets((prev) => [...prev, ...result.assets].slice(0, 12))
     }
-  }
+  }, [])
+
+  const pickVideos = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert('Quyền truy cập', 'Cần quyền thư viện để chọn video.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      ...PICKER_BASE,
+      ...PICKER_IOS_COMPAT,
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsMultipleSelection: true,
+      selectionLimit: 4,
+    })
+    if (!result.canceled && result.assets.length) {
+      setAssets((prev) => [...prev, ...result.assets].slice(0, 12))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!visible) {
+      autoPickDoneRef.current = false
+      return
+    }
+    if (!initialLibrary || autoPickDoneRef.current || busy) return
+    autoPickDoneRef.current = true
+    void (initialLibrary === 'video' ? pickVideos() : pickPhotos())
+  }, [visible, initialLibrary, busy, pickPhotos, pickVideos])
 
   const submit = async () => {
-    const ok = await onPublish(draft, assets)
-    if (ok) {
+    const result = await onPublish(draft, assets)
+    if (result.ok) {
       resetLocal()
       handleClose()
+    } else if (result.error) {
+      Alert.alert('Không đăng được', result.error)
     }
   }
 
@@ -232,14 +286,24 @@ export function FeedComposeModal({
             </ScrollView>
           ) : null}
 
-          <Pressable
-            style={[styles.addMediaRow, { backgroundColor: p.surfaceElevated, borderColor: p.border }]}
-            onPress={() => void pickPhotos()}
-            disabled={busy}
-          >
-            <FontAwesome name="photo" size={20} color={p.accent} />
-            <Text style={{ marginLeft: 10, fontFamily: Font.medium, color: p.ink }}>Ảnh & video</Text>
-          </Pressable>
+          <View style={styles.addMediaGrid}>
+            <Pressable
+              style={[styles.addMediaRow, { backgroundColor: p.surfaceElevated, borderColor: p.border }]}
+              onPress={() => void pickPhotos()}
+              disabled={busy}
+            >
+              <FontAwesome name="photo" size={20} color={p.accent} />
+              <Text style={{ marginLeft: 10, fontFamily: Font.medium, color: p.ink }}>Ảnh &amp; video</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.addMediaRow, { backgroundColor: p.surfaceElevated, borderColor: p.border }]}
+              onPress={() => void pickVideos()}
+              disabled={busy}
+            >
+              <FontAwesome name="video-camera" size={20} color={p.accent} />
+              <Text style={{ marginLeft: 10, fontFamily: Font.medium, color: p.ink }}>Chỉ video</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
@@ -302,8 +366,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  addMediaGrid: { marginTop: 14, gap: 10 },
   addMediaRow: {
-    marginTop: 18,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,

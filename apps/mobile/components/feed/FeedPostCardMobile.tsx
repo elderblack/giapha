@@ -78,6 +78,10 @@ export const FeedPostCardMobile = memo(function FeedPostCardMobileInner({
     ])
   }, [mine, sb, post.id, onReload])
 
+  const openReels = useCallback(() => {
+    router.push({ pathname: '/feed/reels', params: { startId: post.id } })
+  }, [router, post.id])
+
   const openAuthorProfile = useCallback(() => {
     router.push(`/profile/${post.author_id}`)
   }, [router, post.author_id])
@@ -107,6 +111,7 @@ export const FeedPostCardMobile = memo(function FeedPostCardMobileInner({
         onCommentPress={openDetail}
         onCommentCountPress={openDetail}
         onAuthorPress={openAuthorProfile}
+        onOpenVideoReels={hasEmbedVideo ? openReels : undefined}
       />
     </View>
   )

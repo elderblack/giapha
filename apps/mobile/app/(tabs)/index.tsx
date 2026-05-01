@@ -51,6 +51,7 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState<FeedPostState[] | null>(null)
   const [feedLoading, setFeedLoading] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
+  const [composeLibrary, setComposeLibrary] = useState<'all' | 'video' | null>(null)
   const [publishBusy, setPublishBusy] = useState(false)
 
   const scrollYRef = useRef(0)
@@ -257,8 +258,8 @@ export default function HomeScreen() {
     }
   }, [sb, treeId, handleFeedReload, scheduleRefreshDebounced])
 
-  async function publishFromModal(bodyDraft: string, assets: ImagePickerAsset[]): Promise<boolean> {
-    if (!treeId || !user?.id) return false
+  async function publishFromModal(bodyDraft: string, assets: ImagePickerAsset[]) {
+    if (!treeId || !user?.id) return { ok: false as const, error: 'Chưa có dòng họ hoặc chưa đăng nhập.' }
     setPublishBusy(true)
     try {
       const r = await publishFamilyFeedPostMobile({
@@ -267,9 +268,9 @@ export default function HomeScreen() {
         bodyDraft,
         assets,
       })
-      if (!r.ok) return false
+      if (!r.ok) return { ok: false as const, error: r.error }
       await refreshFeed()
-      return true
+      return { ok: true as const }
     } finally {
       setPublishBusy(false)
     }
@@ -350,16 +351,29 @@ export default function HomeScreen() {
           </View>
         ) : treeId ? (
           <>
-            <Text style={[styles.fbSubline, { color: p.muted, fontFamily: Font.medium }]}>
-              Bảng tin · {treeName ?? 'Dòng họ'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, marginBottom: 6 }}>
+              <Text style={[styles.fbSubline, { color: p.muted, fontFamily: Font.medium, marginBottom: 0, paddingHorizontal: 0, flex: 1 }]}>
+                Bảng tin · {treeName ?? 'Dòng họ'}
+              </Text>
+              <Pressable
+                onPress={() => router.push('/feed/reels')}
+                hitSlop={8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}
+              >
+                <FontAwesome name="play-circle" size={16} color={p.accent} />
+                <Text style={{ fontFamily: Font.semiBold, fontSize: 13, color: p.accent }}>Lướt clip</Text>
+              </Pressable>
+            </View>
 
             {/* Dải ô tròn (stub) */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Thêm tin hoặc đăng bài"
-                onPress={() => setComposeOpen(true)}
+                onPress={() => {
+                  setComposeLibrary(null)
+                  setComposeOpen(true)
+                }}
                 style={({ pressed }) => [styles.storyCircle, styles.storyCircleAdd, { borderColor: p.accent, opacity: pressed ? 0.85 : 1 }]}
               >
                 <FontAwesome name="plus" color={p.accent} size={28} />
@@ -390,17 +404,20 @@ export default function HomeScreen() {
                   </LinearGradient>
                 )}
               </View>
-              <Pressable onPress={() => setComposeOpen(true)} style={[styles.compInputFake, { backgroundColor: p.canvasMuted }]}>
+              <Pressable onPress={() => { setComposeLibrary(null); setComposeOpen(true) }} style={[styles.compInputFake, { backgroundColor: p.canvasMuted }]}>
                 <Text style={{ fontFamily: Font.medium, fontSize: 15, color: p.muted }}>Bạn đang nghĩ gì…?</Text>
               </Pressable>
-              <Pressable onPress={() => setComposeOpen(true)} style={[styles.compMediaBtn, { backgroundColor: p.canvasMuted }]}>
+              <Pressable onPress={() => { setComposeLibrary(null); setComposeOpen(true) }} style={[styles.compMediaBtn, { backgroundColor: p.canvasMuted }]}>
                 <FontAwesome name="image" color={p.accent} size={22} />
               </Pressable>
             </View>
 
             <View style={[styles.quickRow, { marginHorizontal: 12, paddingVertical: 0, marginBottom: 8, backgroundColor: p.surfaceElevated, borderWidth: StyleSheet.hairlineWidth, borderColor: p.border }]}>
               <Pressable
-                onPress={() => setComposeOpen(true)}
+                onPress={() => {
+                  setComposeLibrary(null)
+                  setComposeOpen(true)
+                }}
                 accessibilityLabel="Đăng ảnh"
                 style={[styles.quickCell, { flex: 1 }]}
               >
@@ -411,12 +428,16 @@ export default function HomeScreen() {
               </Pressable>
               <View style={[styles.quickSep, { backgroundColor: p.border }]} />
               <Pressable
-                onPress={() => Alert.alert('Cảm xúc hoạt động', 'Sẽ bổ sung sau — đăng tin văn & ảnh vẫn dùng ô trên hoặc Nút Đăng.')}
+                onPress={() => {
+                  setComposeLibrary('video')
+                  setComposeOpen(true)
+                }}
+                accessibilityLabel="Đăng video"
                 style={[styles.quickCell, { flex: 1 }]}
               >
-                <FontAwesome name="smile-o" color={p.accent} size={18} />
+                <FontAwesome name="video-camera" color={p.accent} size={17} />
                 <Text style={{ marginLeft: 8, fontFamily: Font.medium, fontSize: 14, color: p.inkMuted }} numberOfLines={1}>
-                  Cảm xúc
+                  Clip
                 </Text>
               </Pressable>
               <View style={[styles.quickSep, { backgroundColor: p.border }]} />
@@ -473,11 +494,15 @@ export default function HomeScreen() {
 
       <FeedComposeModal
         visible={composeOpen}
-        onClose={() => setComposeOpen(false)}
+        onClose={() => {
+          setComposeLibrary(null)
+          setComposeOpen(false)
+        }}
         busy={publishBusy}
         onPublish={(b, assets) => publishFromModal(b, assets)}
         avatarUrl={profile?.avatar_url ?? null}
         initials={initials}
+        initialLibrary={composeLibrary}
       />
     </SafeAreaView>
   )

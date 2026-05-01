@@ -53,6 +53,8 @@ export type FeedPostBodyMobileProps = {
   embedAutoplayActive?: boolean
   /** Mở hồ sơ tác giả (avatar + tên). */
   onAuthorPress?: () => void
+  /** Bảng tin: chạm video mở lướt clip; không truyền thì mở lightbox như cũ. */
+  onOpenVideoReels?: () => void
 }
 
 export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
@@ -67,6 +69,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
   videoMode = 'inline',
   embedAutoplayActive = false,
   onAuthorPress,
+  onOpenVideoReels,
 }: FeedPostBodyMobileProps) {
   const p = usePalette()
   const profile = post.profiles
@@ -236,8 +239,9 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
           {sortedPreviews.length === 1 && sortedPreviews[0].media_kind === 'video' ? (
             videoMode === 'feedPoster' ? (
               <Pressable
-                onPress={() => openViewerAt(0)}
-                accessibilityLabel="Xem video phóng to"
+                onPress={() => (onOpenVideoReels ? onOpenVideoReels() : openViewerAt(0))}
+                onLongPress={onOpenVideoReels ? () => openViewerAt(0) : undefined}
+                accessibilityLabel={onOpenVideoReels ? 'Lướt clip hoặc giữ để phóng to' : 'Xem video phóng to'}
                 style={{ alignSelf: 'center', borderRadius: 10, overflow: 'hidden' }}
               >
                 <View style={{ width: imageMaxW, height: feedPosterVideoTileH, backgroundColor: '#000' }}>
@@ -386,8 +390,9 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                   videoMode === 'feedPoster' ? (
                     <Pressable
                       key={m.id}
-                      onPress={() => openViewerAt(mediaIdx)}
-                      accessibilityLabel="Xem video phóng to"
+                      onPress={() => (onOpenVideoReels ? onOpenVideoReels() : openViewerAt(mediaIdx))}
+                      onLongPress={onOpenVideoReels ? () => openViewerAt(mediaIdx) : undefined}
+                      accessibilityLabel={onOpenVideoReels ? 'Lướt clip hoặc giữ để phóng to' : 'Xem video phóng to'}
                       style={[styles.videoShell, { width: imageMaxW, height: feedPosterVideoTileH, borderColor: p.border }]}
                     >
                       <Video

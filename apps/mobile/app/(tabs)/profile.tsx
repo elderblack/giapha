@@ -413,6 +413,18 @@ export default function ProfileScreen() {
             ) : (
               <View style={[styles.detailCard, { backgroundColor: sheetBg, borderColor: p.border, padding: 0 }]}>
                 <Pressable
+                  onPress={() => router.push('/profile/security')}
+                  style={({ pressed }) => [styles.accountRow, { opacity: pressed ? 0.75 : 1 }]}
+                  accessibilityLabel="Bảo mật đăng nhập"
+                >
+                  <View style={[styles.detailIconWrap, { backgroundColor: p.canvasMuted }]}>
+                    <FontAwesome name="key" size={18} color={p.muted} />
+                  </View>
+                  <Text style={[styles.accountRowTitle, { color: p.ink, fontFamily: Font.semiBold }]}>Bảo mật đăng nhập</Text>
+                  <FontAwesome name="chevron-right" size={14} color={p.muted} />
+                </Pressable>
+                <View style={[styles.accountSep, { backgroundColor: p.border }]} />
+                <Pressable
                   onPress={confirmSignOut}
                   style={({ pressed }) => [styles.accountRow, { opacity: pressed ? 0.75 : 1 }]}
                   accessibilityLabel="Đăng xuất"
@@ -529,5 +541,6 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 12, marginBottom: 2 },
   detailValue: { fontSize: 16, lineHeight: 22 },
   accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 14, gap: 12 },
+  accountSep: { height: StyleSheet.hairlineWidth, marginLeft: 58 },
   accountRowTitle: { fontSize: 16, flex: 1 },
 })

@@ -7,6 +7,7 @@ export default function ProfileStackLayout() {
   return (
     <Stack screenOptions={screenOptions}>
       <Stack.Screen name="edit" options={{ title: 'Chỉnh sửa thông tin' }} />
+      <Stack.Screen name="security" options={{ title: 'Bảo mật đăng nhập' }} />
       <Stack.Screen
         name="[userId]"
         options={{

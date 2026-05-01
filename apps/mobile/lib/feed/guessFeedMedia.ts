@@ -7,3 +7,14 @@ export function guessMediaKindFromMimeAndUri(mimeHint: string | undefined, uriOr
   if (/\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(u)) return 'image'
   return null
 }
+
+/** Expo ImagePicker: ưu tiên `type` từ asset, rồi MIME, rồi đuôi tệp. */
+export function guessMediaKindFromPickerAsset(asset: {
+  uri: string
+  mimeType?: string | null
+  type?: 'image' | 'video' | unknown
+}): 'image' | 'video' | null {
+  if (asset.type === 'video') return 'video'
+  if (asset.type === 'image') return 'image'
+  return guessMediaKindFromMimeAndUri(asset.mimeType ?? undefined, asset.uri)
+}

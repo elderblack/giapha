@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native'
 
-import { FeedComposeModal } from '@/components/feed/FeedComposeModal'
+import { FeedComposeModal, type FeedComposePublishResult } from '@/components/feed/FeedComposeModal'
 import { FeedPostCardMobile } from '@/components/feed/FeedPostCardMobile'
 import { Text } from '@/components/Themed'
 import { usePalette } from '@/hooks/usePalette'
@@ -132,8 +132,8 @@ export function ProfilePostsTab(props: {
   }, [profileUserId, loadBatch])
 
   const publishFromProfile = useCallback(
-    async (bodyDraft: string, assets: { uri: string; mimeType?: string | null }[]): Promise<boolean> => {
-      if (!viewerUserId || !selectedPostTreeId) return false
+    async (bodyDraft: string, assets: { uri: string; mimeType?: string | null }[]): Promise<FeedComposePublishResult> => {
+      if (!viewerUserId || !selectedPostTreeId) return { ok: false, error: 'Chưa chọn dòng họ.' }
       setPublishBusy(true)
       try {
         const r = await publishFamilyFeedPostMobile({
@@ -142,9 +142,9 @@ export function ProfilePostsTab(props: {
           bodyDraft,
           assets,
         })
-        if (!r.ok) return false
+        if (!r.ok) return { ok: false, error: r.error }
         await loadBatch(true)
-        return true
+        return { ok: true }
       } finally {
         setPublishBusy(false)
       }
