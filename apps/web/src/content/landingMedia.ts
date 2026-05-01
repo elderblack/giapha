@@ -1,18 +1,18 @@
 /**
- * Ảnh landing (Unsplash). Trích dẫn: https://unsplash.com/license
- * Có thể thay bằng file trong /public khi có ảnh riêng.
+ * Ảnh landing phục vụ từ /public/landing (Vite copy sang dist) — không phụ thuộc CDN khi user mở trang.
+ * Nguồn gốc: Unsplash (giấy phép https://unsplash.com/license). File: hero.jpg, features.jpg.
  */
 export const landingMedia = {
   hero: {
-    src: 'https://images.unsplash.com/photo-1511988617509-a57c8a288659?auto=format&fit=crop&w=1600&q=85',
-    alt: 'Nhiều thế hệ và người thân cùng quây quần, sum họp.',
-    creditLabel: 'Unsplash',
-    creditUrl: 'https://unsplash.com',
+    src: '/landing/hero.jpg',
+    alt: 'Gia đình nhiều thế hệ chụp ảnh ngoài trời tại Quảng Nam, Việt Nam.',
+    creditLabel: 'Fernandes Photographer / Unsplash',
+    creditUrl: 'https://unsplash.com/photos/h8zP5HOBGBc',
   },
   featuresBanner: {
-    src: 'https://images.unsplash.com/photo-1761839257647-df30867afd54?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    alt: 'Không gian cộng đồng ấm áp, chia sẻ câu chuyện gia đình.',
-    creditLabel: 'Unsplash',
-    creditUrl: 'https://unsplash.com',
+    src: '/landing/features.jpg',
+    alt: 'Đèn lồng đêm phố cổ Hội An, Quảng Nam — không gian ấm, gần văn hoá họ hàng và lễ tiết Việt.',
+    creditLabel: 'Steven Wilcox / Unsplash',
+    creditUrl: 'https://unsplash.com/photos/mYNGbkIBIGM',
   },
 } as const

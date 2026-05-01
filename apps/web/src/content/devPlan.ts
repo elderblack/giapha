@@ -110,6 +110,21 @@ export const DEVELOPMENT_PLAN: PlanPhase[] = [
     ],
   },
   {
+    id: 'p6adm',
+    title: 'Giai đoạn 6b — Dashboard quản trị (web)',
+    weekRange: 'Song song vận hành',
+    goal: 'Theo dõi chỉ báo nền tảng và waitlist (nội bộ)',
+    tasks: [
+      {
+        id: 'p6adm-t1',
+        label:
+          'Supabase: bảng platform_admins + RPC is_platform_admin / get_admin_dashboard_summary (SECURITY DEFINER)',
+        shipped: true,
+      },
+      { id: 'p6adm-t2', label: 'Web /app/admin: thẻ chỉ báo + bảng waitlist; menu Quản trị khi có quyền', shipped: true },
+    ],
+  },
+  {
     id: 'p7',
     title: 'Giai đoạn 7 — Monetisation',
     weekRange: 'Tuần 21–24',

@@ -12,8 +12,9 @@ Cập nhật: **tháng 4/2026** (bổ sung Phase 4 feed & kết nối).
 | **Phase 4** — Bảng tin & kết nối | Hoàn thành (mã nguồn) | Migration `20260601120000_phase4_feed_social.sql` (posts, reactions, comments, follows, friendships, notifications, bucket `family-feed-media`, Realtime). App tab **Bảng tin** trong dòng họ, `/app/connections`, chuông thông báo. |
 | **Phase 5** — Chat realtime | Hoàn thành (mã nguồn) | DM + nhóm, presence, badge đọc, thông báo trong app — xem mục Phase 5 dưới. **Cloud:** migration Phase 5 + Realtime + bucket chat. |
 | **Phase 6** — Mobile (Expo) | **Đang triển khai** | `apps/mobile`: Expo SDK 54 + Expo Router, Metro monorepo + pnpm; bundle id `vn.giapha.app`. Chạy: `pnpm dev:mobile`. |
+| **Phase 6b** — Admin dashboard (web) | **MVP trong repo** | Bảng `platform_admins` + RPC (`is_platform_admin`, `get_admin_dashboard_summary`). App: `/app/admin` (chỉ user có trong bảng). Thêm admin: SQL Editor — `INSERT INTO public.platform_admins (user_id) VALUES ('<uuid>');` |
 
-**Tóm lắc:** vận hành: áp migration Phase 4–5…; **Phase 6** xây app iOS/Android song song web; Phase 3 cloud: cron nhắc giỗ.
+**Tóm lắc:** vận hành: áp migration Phase 4–5…; **Phase 6** xây app iOS/Android song song web; Phase 3 cloud: cron nhắc giỗ; **Phase 6b:** migration `20260901120000_platform_admin_dashboard.sql` + gán admin thủ công.
 
 
 ---
@@ -83,16 +84,22 @@ Cập nhật: **tháng 4/2026** (bổ sung Phase 4 feed & kết nối).
 
 - `p6-t2` …: Supabase Auth (`@supabase/supabase-js`), port màn hình; `p6-t3` phả đồ (`react-native-svg`); push FCM/APNs; offline (theo `apps/web/src/content/devPlan.ts`).
 
+## Phase 6b — Dashboard quản trị (web, MVP)
+
+- **Backend:** `supabase/migrations/20260901120000_platform_admin_dashboard.sql` — `platform_admins` (RLS, không policy client), `is_platform_admin()`, `get_admin_dashboard_summary()` (đếm profiles, trees, members, roles, waitlist, feed_posts, chat_conversations + 80 dòng waitlist mới nhất).
+- **Web:** `/app/admin` (`AdminDashboardPage`, `RequirePlatformAdmin`), hook `usePlatformAdmin`, mục **Quản trị** trên thanh điều hướng desktop khi có quyền.
+- **Vận hành:** sau khi chạy migration, thêm ít nhất một `user_id` (UUID `auth.users` / `profiles.id`) vào `platform_admins`.
+
 ## Sau Phase 6
 
-- Tìm kiếm công khai, monetization — theo Phase 7 trong `devPlan.ts` (chưa làm).
+- Monetization — theo Phase 7 trong `devPlan.ts` (chưa làm); tìm kiếm công khai theo nhu cầu.
 
 ---
 
 ## Tham chiếu nhanh
 
 - Migration: `supabase/migrations/`
-- App web: `apps/web/src/App.tsx`
+- App web: `apps/web/src/App.tsx` (admin: `/app/admin`)
 - App mobile: `apps/mobile/app/` (Expo Router)
 - Chi tiết dòng họ: `TreeDetailLayout.tsx`, tab **Trang chủ / Phả hệ / Thành viên** (`TreeOverviewPage.tsx`, `TreeChartPage.tsx`, `TreeMembersPage.tsx`); bản tin: `feed/TreeFeedPage` trên **Trang nhà** `AppHome.tsx`
 - Kế hoạch chi tiết (7 phase, checkbox): `apps/web/src/pages/landing/RoadmapPage.tsx`, dữ liệu `apps/web/src/content/devPlan.ts`

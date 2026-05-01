@@ -21,9 +21,12 @@ import { ChatShell } from './app/chat/ChatShell'
 import { ChatThreadPage } from './app/chat/ChatThreadPage'
 import { ConnectionsPage } from './app/ConnectionsPage'
 import { RequireAuth } from './auth/RequireAuth'
+import { RequirePlatformAdmin } from './auth/RequirePlatformAdmin'
 import { LandingPage } from './pages/landing/LandingPage'
 import { LandingLayout } from './pages/landing/LandingLayout'
 import { RoadmapPage } from './pages/landing/RoadmapPage'
+import { AdminDashboardPage } from './app/admin/AdminDashboardPage'
+import { AdminShell } from './app/admin/AdminShell'
 
 function TreeFeedRedirectsToOverview() {
   const { treeId } = useParams<{ treeId: string }>()
@@ -42,6 +45,20 @@ export default function App() {
       <Route path="/app/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/app/reset-password" element={<ResetPasswordPage />} />
       <Route path="/app/auth/callback" element={<AuthCallback />} />
+
+      {/* Gian quản trị: shell riêng, không ChatDock / nav thành viên. */}
+      <Route
+        path="/app/admin"
+        element={
+          <RequireAuth>
+            <RequirePlatformAdmin>
+              <AdminShell />
+            </RequirePlatformAdmin>
+          </RequireAuth>
+        }
+      >
+        <Route index element={<AdminDashboardPage />} />
+      </Route>
 
       <Route
         path="/app"

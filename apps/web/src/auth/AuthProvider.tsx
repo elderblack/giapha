@@ -5,7 +5,7 @@ import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(() => !!getSupabase())
+  const [loading, setLoading] = useState(() => Boolean(getSupabase()))
 
   useEffect(() => {
     const sb = getSupabase()
@@ -13,18 +13,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false
 
-    sb.auth
-      .getSession()
+    const { data: sub } = sb.auth.onAuthStateChange((event, s) => {
+      if (cancelled) return
+      setSession(s)
+      if (event === 'INITIAL_SESSION') setLoading(false)
+    })
+
+    void Promise.resolve(sb.auth.getSession())
       .then(({ data: { session: s } }) => {
-        if (!cancelled) setSession(s ?? null)
+        if (cancelled) return
+        setSession(s ?? null)
       })
-      .finally(() => {
+      .catch(() => {
+        if (cancelled) return
+        setSession(null)
+      })
+      .then(() => {
         if (!cancelled) setLoading(false)
       })
-
-    const { data: sub } = sb.auth.onAuthStateChange((_evt, s) => {
-      setSession(s)
-    })
 
     return () => {
       cancelled = true
