@@ -1,4 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
+import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
@@ -10,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -23,8 +25,13 @@ import { Font } from '@/theme/typography'
 
 type Mode = 'signIn' | 'signUp'
 
+/** Ảnh gói trong bundle — tránh lỗi không tải được URL từ mạng (simulator / ATS / CDN). */
+const authHeroSource = require('../assets/images/auth-hero.jpg') as number
+
 export default function SignInScreen() {
   const p = usePalette()
+  const { height: windowH } = useWindowDimensions()
+  const heroHeight = Math.min(Math.round(windowH * 0.38), 340)
   const router = useRouter()
   const { loading: authLoading } = useAuth()
   const sb = getSupabase()
@@ -136,21 +143,37 @@ export default function SignInScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: p.canvas }]}>
-      <LinearGradient colors={p.scheme === 'dark' ? ['#1f1320', '#0B0F14'] : ['#FFF0F4', '#F4F6F9']} style={styles.gradTop}>
-        <SafeAreaView edges={['top']}>
+      <View style={[styles.heroContainer, { height: heroHeight }]}>
+        <Image
+          source={authHeroSource}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={280}
+          recyclingKey="auth-hero"
+        />
+        <LinearGradient
+          colors={
+            p.scheme === 'dark'
+              ? ['rgba(0,0,0,0.28)', 'rgba(11,15,22,0.72)']
+              : ['rgba(0,0,0,0.2)', 'rgba(30,10,22,0.58)']
+          }
+          locations={[0, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <SafeAreaView edges={['top']} style={styles.heroSafe}>
           <View style={styles.topBrand}>
-            <View style={[styles.logoMark, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
-              <FontAwesome name="tree" size={30} color="#FFF" />
+            <View style={styles.logoMark}>
+              <FontAwesome name="tree" size={28} color="#FFF" />
             </View>
-            <Text style={[styles.brandTypo, { fontFamily: Font.extraBold }, { color: p.scheme === 'dark' ? p.ink : '#1E0A14' }]}>
+            <Text style={[styles.brandTypo, { fontFamily: Font.extraBold, color: '#FFFFFF' }]}>
               Gia Phả
             </Text>
-            <Text style={[styles.tags, { fontFamily: Font.medium, color: p.scheme === 'dark' ? p.muted : '#5C3D4A' }]}>
-              Gốc rễ họ tộc · chia sẻ kỷ niệm
+            <Text style={[styles.tags, { fontFamily: Font.medium, color: 'rgba(255,255,255,0.88)' }]}>
+              Gìn giữ dòng họ · kết nối thế hệ
             </Text>
           </View>
         </SafeAreaView>
-      </LinearGradient>
+      </View>
 
       <KeyboardAvoidingView
         style={[styles.sheetWrap, styles.flex]}
@@ -279,22 +302,38 @@ const styles = StyleSheet.create({
   },
   fallbackTitle: { fontSize: 22, marginTop: 8, textAlign: 'center' },
   fallbackTxt: { fontSize: 14, textAlign: 'center', lineHeight: 22, paddingHorizontal: 12 },
-  gradTop: { paddingBottom: 20 },
-  topBrand: { paddingHorizontal: 28, gap: 6 },
+  heroContainer: {
+    width: '100%',
+    overflow: 'hidden',
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  heroSafe: { flex: 1 },
+  topBrand: {
+    flex: 1,
+    paddingHorizontal: 28,
+    paddingBottom: 28,
+    gap: 6,
+    justifyContent: 'flex-end',
+  },
   logoMark: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
-  brandTypo: { fontSize: 34, letterSpacing: -1, marginTop: 8 },
-  tags: { fontSize: 15, marginTop: 2, opacity: 0.95 },
-  sheetWrap: { flex: 1, marginTop: -18 },
+  brandTypo: { fontSize: 32, letterSpacing: -0.8, marginTop: 10, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
+  tags: { fontSize: 15, marginTop: 2, lineHeight: 21 },
+  sheetWrap: { flex: 1, marginTop: -22 },
   sheetInner: {
     flexGrow: 1,
     paddingHorizontal: 20,
+    paddingTop: 6,
     paddingBottom: 40,
     maxWidth: 440,
     width: '100%',

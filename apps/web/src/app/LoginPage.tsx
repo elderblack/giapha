@@ -6,6 +6,10 @@ import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { normalizeVnPhoneToE164 } from '../lib/phoneE164'
 import { role } from '../design/roles'
 
+/** Ảnh minh họa (Unsplash) — gia đình & kết nối; tải có tối ưu kích thước. */
+const AUTH_HERO_IMAGE =
+  'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=2000&q=85'
+
 /** Callback Supabase Auth; `next` được AuthCallback đọc sau magic link / xác nhận email / OAuth. */
 function authCallbackRedirectUrl(postAuthPath: string) {
   const base =
@@ -220,23 +224,78 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-svh bg-abnb-canvas">
-      <div className="pointer-events-none absolute inset-0 bg-hero-radial opacity-80" aria-hidden />
-      <div className="relative flex min-h-svh flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-svh bg-abnb-canvas lg:grid lg:min-h-svh lg:grid-cols-[minmax(0,1fr)_minmax(420px,480px)]">
+      {/* Hero — chỉ lg; mobile: banner ngắn phía trên form */}
+      <div className="relative hidden overflow-hidden lg:block">
+        <img
+          src={AUTH_HERO_IMAGE}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          decoding="async"
+          fetchPriority="high"
+        />
+        <div
+          className="absolute inset-0 bg-gradient-to-tr from-black/75 via-black/35 to-black/25"
+          aria-hidden
+        />
+        <div className="relative flex h-full min-h-svh flex-col justify-end p-10 xl:p-14">
+          <div className="max-w-lg">
+            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-2 ring-white/25 backdrop-blur-md">
+              <TreePine className="h-8 w-8 text-white" strokeWidth={1.75} aria-hidden />
+            </div>
+            <h2 className="text-[2.125rem] font-bold leading-[1.15] tracking-tight text-white drop-shadow-sm xl:text-[2.5rem]">
+              Gia Phả
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed text-white/90">
+              Gìn giữ dòng họ, kết nối thế hệ — một nơi chia sẻ cây gia phả, kỷ niệm và tin nhắn riêng tư cho cả nhà.
+            </p>
+            <ul className="mt-8 space-y-3 text-[15px] font-medium text-white/85">
+              <li className="flex gap-3">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-abnb-secondary" aria-hidden />
+                Bảo mật theo vai trò từng dòng họ
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-abnb-secondary" aria-hidden />
+                Bảng tin, chat và thông báo gần gũi
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative flex min-h-svh flex-col px-4 py-8 sm:px-6 sm:py-12 lg:justify-center lg:overflow-y-auto lg:px-10 xl:px-14">
+        <div className="pointer-events-none absolute inset-0 bg-hero-radial opacity-[0.45] lg:hidden" aria-hidden />
+        {/* Banner ảnh mobile */}
+        <div className="relative mx-auto mb-6 h-40 w-full max-w-md shrink-0 overflow-hidden rounded-abnb-xl shadow-abnb lg:hidden">
+          <img
+            src={AUTH_HERO_IMAGE}
+            alt=""
+            className="h-full w-full object-cover"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" aria-hidden />
+          <div className="absolute inset-x-0 bottom-0 p-5">
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <TreePine className="h-6 w-6 text-white" strokeWidth={1.75} />
+            </div>
+            <p className="mt-3 text-xl font-bold text-white drop-shadow">Gia Phả</p>
+          </div>
+        </div>
+
         <Link
           to="/"
-          className="mb-8 inline-flex items-center gap-2 text-abnb-ink no-underline opacity-80 hover:opacity-100"
+          className="relative z-[1] mb-6 inline-flex w-fit shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-abnb-body no-underline transition-colors hover:bg-abnb-surfaceSoft"
         >
           <TreePine className="h-5 w-5 text-abnb-primary" />
-          <span className="text-sm font-semibold">Về landing</span>
+          <span className="text-sm font-semibold">Về trang chủ</span>
         </Link>
+
         <div
-          className={`${role.card} w-full max-w-md rounded-abnb-xl !p-8 shadow-abnb-lg`}
+          className={`relative z-[1] ${role.card} w-full max-w-md rounded-abnb-xl !p-8 shadow-abnb-xl ring-1 ring-abnb-hairlineSoft/40`}
         >
           <h1 className={role.headingSection}>Đăng nhập</h1>
           <p className={`${role.bodySm} mt-2 text-abnb-muted`}>
-            Đăng nhập bằng email và mật khẩu, số điện thoại + mật khẩu hoặc Google. Tạo tài khoản tại đây rồi dùng
-            mã mời ở mục Dòng họ nếu được mời.
+            Email, số điện thoại hoặc Google. Tạo tài khoản tại đây và tham gia dòng họ bằng mã mời khi được gọi.
           </p>
 
           <div className="mt-6 flex rounded-full bg-abnb-surfaceSoft p-1">
