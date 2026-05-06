@@ -243,6 +243,7 @@ export function FeedVideoTheaterLayer({
       onClose={onClose}
       startIndex={startIndex}
       items={attachmentItems}
+      desktopSidebarMode="commentsOnly"
       verticalReel={
         videoSlides.length > 1
           ? {

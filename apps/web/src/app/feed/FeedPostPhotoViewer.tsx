@@ -15,6 +15,8 @@ type Props = {
   floatingBar?: ReactNode
   /** Theater: thanh nút dọc bên phải (Like/Comment/Share). */
   rightRail?: ReactNode
+  /** Desktop: mặc định luôn hiện panel (ảnh như cũ); video theater có thể chỉ hiện khi mở bình luận. */
+  desktopSidebarMode?: 'always' | 'commentsOnly'
   /** @deprecated dùng `floatingBar` */
   mobileFloatingBar?: ReactNode
   /** Mobile: điều khiển sheet bình luận từ ngoài (đóng viewer cần reset). */
@@ -42,6 +44,7 @@ export function FeedPostPhotoViewer({
   sidebar,
   floatingBar,
   rightRail,
+  desktopSidebarMode = 'always',
   mobileFloatingBar,
   mobileCommentsOpen: commentsOpenControlled,
   onMobileCommentsOpenChange,
@@ -299,20 +302,22 @@ export function FeedPostPhotoViewer({
         </p>
       </section>
 
-      {!maxLg && commentsOpen ? (
+      {!maxLg && (desktopSidebarMode === 'always' || commentsOpen) ? (
         <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#393a3f] bg-[#242526] text-[#e4e6eb] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:h-full lg:max-h-none lg:min-h-0 lg:w-[min(420px,_40vw)] lg:flex-none lg:shrink-0 lg:border-l lg:border-t-0">
-          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.08] px-2 py-2">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-[12px] font-semibold text-[#e4e6eb] ring-1 ring-white/15 transition hover:bg-white/16"
-              onClick={() => setCommentsOpen(false)}
-              aria-label="Thu gọn bình luận"
-              title="Thu gọn"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-              Thu gọn
-            </button>
-          </div>
+          {desktopSidebarMode === 'commentsOnly' ? (
+            <div className="flex shrink-0 items-center justify-end border-b border-white/[0.08] px-2 py-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-[12px] font-semibold text-[#e4e6eb] ring-1 ring-white/15 transition hover:bg-white/16"
+                onClick={() => setCommentsOpen(false)}
+                aria-label="Thu gọn bình luận"
+                title="Thu gọn"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden />
+                Thu gọn
+              </button>
+            </div>
+          ) : null}
           {sidebar}
         </aside>
       ) : null}
