@@ -1,13 +1,31 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { ImageOff, Maximize2, X } from 'lucide-react'
+import { ImageOff, X } from 'lucide-react'
 import { useFeedImageLayout } from './useFeedImageLayout'
 import { FeedScrollVideo } from './FeedScrollVideo'
+import type { FeedMediaRow } from './feedQueries'
+import { getFeedMediaPublicUrl } from './feedQueries'
 
 /** Một ô media (ảnh trong bài hoặc preview blob URL khi đăng). */
 export type FeedAttachmentItem = {
   key: string
   url: string
   kind: 'image' | 'video'
+}
+
+/** Thứ tự giống FeedPostCard / lưới đính kèm (sort_order → bỏ mục không có URL). */
+export function buildFeedAttachmentItems(
+  media: FeedMediaRow[],
+  urlByPath: Record<string, string>,
+): FeedAttachmentItem[] {
+  const sorted = [...media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  const items: FeedAttachmentItem[] = []
+  for (const m of sorted) {
+    const sp = m.storage_path.trim()
+    const url = urlByPath[sp] ?? getFeedMediaPublicUrl(sp)
+    if (!url) continue
+    items.push({ key: m.id, url, kind: m.media_kind })
+  }
+  return items
 }
 
 /** Ảnh trong mosaic không tải — dùng chung cho ô cover và khung đơn. */
@@ -81,6 +99,7 @@ function MediaTileCover({
   photoFit = 'cover',
   boxMode = 'fill-cell',
   scrollAutoplay = true,
+  onOpen,
 }: {
   item: FeedAttachmentItem
   className?: string
@@ -92,6 +111,8 @@ function MediaTileCover({
   boxMode?: 'fill-cell' | 'contain-box'
   /** Bản tin: tự phát khi cuộn tới (muted). Composer: false — chỉ xem/thao tác tay. */
   scrollAutoplay?: boolean
+  /** Feed: click media để mở theater. */
+  onOpen?: () => void
 }) {
   const [imgBroken, setImgBroken] = useState(false)
   const [videoBroken, setVideoBroken] = useState(false)
@@ -112,18 +133,37 @@ function MediaTileCover({
   if (item.kind === 'video') {
     if (videoBroken) return <VideoBrokenPlaceholder />
     if (scrollAutoplay) {
-      return <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} />
+      return (
+        <div
+          className="relative h-full w-full"
+          onClickCapture={(e) => {
+            if (!onOpen) return
+            // Cho phép user dùng controls; chỉ mở theater khi click đúng vào thẻ video.
+            if (e.target instanceof HTMLVideoElement) onOpen()
+          }}
+        >
+          <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} controls />
+        </div>
+      )
     }
     return (
-      <video
-        src={item.url}
-        muted
-        controls
-        playsInline
-        preload="metadata"
-        className={fit}
-        onError={() => setVideoBroken(true)}
-      />
+      <div
+        className="relative h-full w-full"
+        onClickCapture={(e) => {
+          if (!onOpen) return
+          if (e.target instanceof HTMLVideoElement) onOpen()
+        }}
+      >
+        <video
+          src={item.url}
+          muted
+          controls
+          playsInline
+          preload="metadata"
+          className={fit}
+          onError={() => setVideoBroken(true)}
+        />
+      </div>
     )
   }
 
@@ -184,22 +224,7 @@ function FeedThumbnailExpandCtl({
   onMediaOpen?: (index: number) => void
 }): ReactNode {
   if (!onMediaOpen) return null
-  if (item.kind === 'video') {
-    return (
-      <button
-        type="button"
-        className="absolute bottom-2 right-2 z-[25] inline-flex touch-manipulation items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white ring-1 ring-white/25 backdrop-blur-sm hover:bg-black/88"
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          onMediaOpen(idx)
-        }}
-      >
-        <Maximize2 className="h-3.5 w-3.5" aria-hidden />
-        Xem lớn
-      </button>
-    )
-  }
+  if (item.kind === 'video') return null
   return (
     <button
       type="button"
@@ -237,7 +262,7 @@ function FeedHeroStrip({
           expandControl={<FeedThumbnailExpandCtl item={it} idx={idx} onMediaOpen={onMediaOpen} />}
           overlay={moreOverlay != null && idx === items.length - 1 ? moreOverlay : undefined}
         >
-          <MediaTileCover item={it} />
+          <MediaTileCover item={it} onOpen={onMediaOpen ? () => onMediaOpen(idx) : undefined} />
         </GridCellShell>
       ))}
     </div>
@@ -269,7 +294,7 @@ function FeedPortraitRow({
           expandControl={<FeedThumbnailExpandCtl item={it} idx={idx} onMediaOpen={onMediaOpen} />}
           overlay={moreOverlay != null && idx === items.length - 1 ? moreOverlay : undefined}
         >
-          <MediaTileCover item={it} />
+          <MediaTileCover item={it} onOpen={onMediaOpen ? () => onMediaOpen(idx) : undefined} />
         </GridCellShell>
       ))}
     </div>
@@ -300,7 +325,7 @@ function FeedQuadResponsive({
           expandControl={<FeedThumbnailExpandCtl item={it} idx={idx} onMediaOpen={onMediaOpen} />}
           overlay={moreOverlay != null && idx === 3 ? moreOverlay : undefined}
         >
-          <MediaTileCover item={it} />
+          <MediaTileCover item={it} onOpen={onMediaOpen ? () => onMediaOpen(idx) : undefined} />
         </GridCellShell>
       ))}
     </div>
@@ -469,7 +494,7 @@ type Props = {
 }
 
 /** Feed: một ảnh/video duy nhất — contain, placeholder khi không tải / không phát được. */
-function SingleFeedHeroMedia({ item }: { item: FeedAttachmentItem }) {
+function SingleFeedHeroMedia({ item, onOpen }: { item: FeedAttachmentItem; onOpen?: () => void }) {
   const [imgBroken, setImgBroken] = useState(false)
   const [videoBroken, setVideoBroken] = useState(false)
   const onImgError = useCallback(() => setImgBroken(true), [])
@@ -480,7 +505,15 @@ function SingleFeedHeroMedia({ item }: { item: FeedAttachmentItem }) {
   if (item.kind === 'video') {
     if (videoBroken) return <VideoBrokenPlaceholder minHeight="min-h-[200px]" />
     return (
-      <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} />
+      <div
+        className="relative h-full w-full"
+        onClickCapture={(e) => {
+          if (!onOpen) return
+          if (e.target instanceof HTMLVideoElement) onOpen()
+        }}
+      >
+        <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} controls />
+      </div>
     )
   }
 
@@ -513,7 +546,7 @@ export function FeedAttachmentGrid({ items, onRemoveAt, compact, onMediaOpen }: 
       <TileShell onRemove={onRemoveAt ? () => onRemoveAt(0) : undefined} removeLabel="Gỡ tệp đính kèm">
         <div className="relative flex w-full justify-center overflow-hidden rounded-abnb-lg bg-black">
           <div className="flex max-h-[min(88vh,_800px)] w-full max-w-full flex-col items-center justify-center px-1 py-0 sm:px-2">
-            <SingleFeedHeroMedia item={it} />
+            <SingleFeedHeroMedia item={it} onOpen={onMediaOpen ? () => onMediaOpen(0) : undefined} />
           </div>
           {onMediaOpen ? <FeedThumbnailExpandCtl item={it} idx={0} onMediaOpen={onMediaOpen} /> : null}
         </div>

@@ -81,6 +81,83 @@ async function loadProfiles(ids: string[]): Promise<Map<string, FeedProfileLite>
 
 type BasePostRow = Pick<FeedPostState, 'id' | 'family_tree_id' | 'author_id' | 'body' | 'created_at'>
 
+function byCreatedAsc(a: { created_at: string }, b: { created_at: string }) {
+  return a.created_at.localeCompare(b.created_at)
+}
+
+function reactionsMapFromCommentReactionRows(rows: FeedCommentReactionRow[] | undefined | null) {
+  const reactByComment = new Map<string, FeedCommentReactionRow[]>()
+  for (const raw of rows ?? []) {
+    const arr = reactByComment.get(raw.comment_id) ?? []
+    arr.push(raw)
+    reactByComment.set(raw.comment_id, arr)
+  }
+  return reactByComment
+}
+
+function nestCommentRowsForPost(
+  list: FeedCommentRow[],
+  profiles: Map<string, FeedProfileLite>,
+  reactByComment: Map<string, FeedCommentReactionRow[]>,
+): FeedPostState['comments'] {
+  function reactionsFor(commentId: string): FeedCommentReactionRow[] {
+    return reactByComment.get(commentId) ?? []
+  }
+  const top = list.filter((c) => c.parent_comment_id === null).sort(byCreatedAsc)
+  return top.map((c) => {
+    const replies = list
+      .filter((x) => x.parent_comment_id === c.id)
+      .sort(byCreatedAsc)
+      .map((r) => ({
+        ...r,
+        profiles: profiles.get(r.author_id),
+        reactions: reactionsFor(r.id),
+      }))
+    return {
+      ...c,
+      profiles: profiles.get(c.author_id),
+      reactions: reactionsFor(c.id),
+      replies,
+    }
+  })
+}
+
+/** Tải cây bình luận một bài (cho theater / lazy-load). */
+export async function loadFeedPostComments(postId: string): Promise<FeedPostState['comments']> {
+  const sb = getSupabase()
+  if (!sb) return []
+  const { data: cData, error } = await sb
+    .from('family_feed_comments')
+    .select('*')
+    .eq('post_id', postId)
+    .order('created_at')
+  if (error) return []
+
+  const flat = (cData ?? []) as FeedCommentRow[]
+  if (flat.length === 0) return []
+
+  const commentIds = flat.map((c) => c.id)
+  const { data: crRows } =
+    commentIds.length > 0
+      ? await sb.from('family_feed_comment_reactions').select('*').in('comment_id', commentIds)
+      : { data: [] as { comment_id: string; user_id: string; kind: string }[] }
+
+  const reactByComment = new Map<string, FeedCommentReactionRow[]>()
+  for (const raw of crRows ?? []) {
+    const row = raw as { comment_id: string; user_id: string; kind: string }
+    const k = parseReactionKind(row.kind)
+    if (!k) continue
+    const fr: FeedCommentReactionRow = { comment_id: row.comment_id, user_id: row.user_id, kind: k }
+    const arr = reactByComment.get(row.comment_id) ?? []
+    arr.push(fr)
+    reactByComment.set(row.comment_id, arr)
+  }
+
+  const authorIds = [...new Set(flat.map((c) => c.author_id))]
+  const profiles = await loadProfiles(authorIds)
+  return nestCommentRowsForPost(flat, profiles, reactByComment)
+}
+
 async function hydrateFeedPosts(postRows: BasePostRow[]): Promise<FeedPostState[]> {
   const sb = getSupabase()
   if (!sb || postRows.length === 0) return []
@@ -132,52 +209,21 @@ async function hydrateFeedPosts(postRows: BasePostRow[]): Promise<FeedPostState[
     commentsByPost.set(c.post_id, arr)
   }
 
-  const reactByComment = new Map<string, FeedCommentReactionRow[]>()
+  const parsedCr: FeedCommentReactionRow[] = []
   for (const raw of crData ?? []) {
     const row = raw as { comment_id: string; user_id: string; kind: string }
     const k = parseReactionKind(row.kind)
     if (!k) continue
-    const fr: FeedCommentReactionRow = { comment_id: row.comment_id, user_id: row.user_id, kind: k }
-    const arr = reactByComment.get(row.comment_id) ?? []
-    arr.push(fr)
-    reactByComment.set(row.comment_id, arr)
+    parsedCr.push({ comment_id: row.comment_id, user_id: row.user_id, kind: k })
   }
-
-  function reactionsFor(commentId: string): FeedCommentReactionRow[] {
-    return reactByComment.get(commentId) ?? []
-  }
-
-  function buildCommentsFor(postId: string) {
-    const list = commentsByPost.get(postId) ?? []
-    const top = list.filter((c) => c.parent_comment_id === null).sort(byCreated)
-    return top.map((c) => {
-      const replies = list
-        .filter((x) => x.parent_comment_id === c.id)
-        .sort(byCreated)
-        .map((r) => ({
-          ...r,
-          profiles: profiles.get(r.author_id),
-          reactions: reactionsFor(r.id),
-        }))
-      return {
-        ...c,
-        profiles: profiles.get(c.author_id),
-        reactions: reactionsFor(c.id),
-        replies,
-      }
-    })
-  }
-
-  function byCreated(a: { created_at: string }, b: { created_at: string }) {
-    return a.created_at.localeCompare(b.created_at)
-  }
+  const reactByComment = reactionsMapFromCommentReactionRows(parsedCr)
 
   return postRows.map((p) => ({
     ...p,
     profiles: profiles.get(p.author_id),
     media: mediaByPost.get(p.id) ?? [],
     reactions: reactByPost.get(p.id) ?? [],
-    comments: buildCommentsFor(p.id),
+    comments: nestCommentRowsForPost(commentsByPost.get(p.id) ?? [], profiles, reactByComment),
   }))
 }
 

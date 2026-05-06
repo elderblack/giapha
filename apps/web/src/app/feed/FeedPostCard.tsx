@@ -5,9 +5,9 @@ import { getSupabase } from '../../lib/supabase'
 import { role } from '../../design/roles'
 import { type FeedReactionKind } from './reactionKinds'
 import { FeedReactionBar } from './FeedReactionBar'
-import { getFeedMediaPublicUrl, type FeedCommentRow, type FeedPostState } from './feedQueries'
+import { type FeedCommentRow, type FeedPostState } from './feedQueries'
 import { useFeedMediaDisplayUrls } from './useFeedMediaDisplayUrls'
-import { FeedAttachmentGrid, type FeedAttachmentItem } from './FeedAttachmentGrid'
+import { FeedAttachmentGrid, buildFeedAttachmentItems } from './FeedAttachmentGrid'
 import { FeedPostPhotoViewer } from './FeedPostPhotoViewer'
 import { FeedPostPhotoViewerSidebar } from './FeedPostPhotoViewerSidebar'
 import { formatFeedDt } from './feedDate'
@@ -24,12 +24,18 @@ export const FeedPostCard = memo(function FeedPostCardInner({
   onReload,
   showTreeLink = false,
   onDeleted,
+  videoTheater,
 }: {
   post: FeedPostState
   currentUserId: string | undefined
   onReload: () => void
   showTreeLink?: boolean
   onDeleted?: () => void
+  /** Mở theater video toàn cục (bảng tin) để lướt sang video bài khác. */
+  videoTheater?: {
+    openVideoSlide: (slideIndex: number) => void
+    slideIndexForVideo: (postId: string, attachmentIndex: number) => number | null
+  }
 }) {
   const sb = getSupabase()
   const profile = post.profiles
@@ -53,18 +59,26 @@ export const FeedPostCard = memo(function FeedPostCardInner({
   const mineReact = post.reactions.find((r) => r.user_id === currentUserId)
 
   const toggleCommentsOpen = useCallback(() => setCommentOpen((v) => !v), [])
-  const openPhotoAtIndex = useCallback((idx: number) => setPhotoViewerIdx(idx), [])
 
-  const attachmentItems = useMemo(() => {
-    const items: FeedAttachmentItem[] = []
-    for (const m of post.media) {
-      const sp = m.storage_path.trim()
-      const url = feedMediaUrls[sp] ?? getFeedMediaPublicUrl(sp)
-      if (!url) continue
-      items.push({ key: m.id, url, kind: m.media_kind })
-    }
-    return items
-  }, [post.media, feedMediaUrls])
+  const attachmentItems = useMemo(
+    () => buildFeedAttachmentItems(post.media, feedMediaUrls),
+    [post.media, feedMediaUrls],
+  )
+
+  const openPhotoAtIndex = useCallback(
+    (idx: number) => {
+      const it = attachmentItems[idx]
+      if (it?.kind === 'video' && videoTheater) {
+        const si = videoTheater.slideIndexForVideo(post.id, idx)
+        if (si != null) {
+          videoTheater.openVideoSlide(si)
+          return
+        }
+      }
+      setPhotoViewerIdx(idx)
+    },
+    [attachmentItems, videoTheater, post.id],
+  )
 
   async function react(kind: FeedReactionKind) {
     if (!sb || !currentUserId) return

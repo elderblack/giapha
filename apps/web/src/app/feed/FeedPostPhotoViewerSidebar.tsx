@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
 import { role } from '../../design/roles'
 import { useMaxLg } from '../../hooks/useMaxLg'
 import type { FeedCommentRow, FeedPostState } from './feedQueries'
@@ -29,6 +30,12 @@ export type FeedPostViewerSidebarProps = {
   onSubmitReply: (top: FeedCommentRow) => void
   onDeleteComment: (id: string) => void
   onReactComment: (commentId: string, kind: FeedReactionKind) => void
+  /** Theater: chưa tải danh sách bình luận cho tới khi người dùng chủ động mở. */
+  theaterLazyComments?: {
+    phase: 'idle' | 'loading' | 'ready'
+    hintCount?: number
+    onReveal: () => void | Promise<void>
+  }
 }
 
 /**
@@ -51,6 +58,7 @@ export function FeedPostPhotoViewerSidebar({
   onSubmitReply,
   onDeleteComment,
   onReactComment,
+  theaterLazyComments,
 }: FeedPostViewerSidebarProps) {
   const isMobileSheet = useMaxLg()
   const [bodyExpanded, setBodyExpanded] = useState(false)
@@ -75,10 +83,28 @@ export function FeedPostPhotoViewerSidebar({
     setTheaterRepliesExpanded({})
   }, [post.id])
 
+  const commentRows =
+    theaterLazyComments && theaterLazyComments.phase !== 'ready' ? [] : post.comments
+
   const commentsToRender = isMobileSheet
-    ? post.comments.slice(0, Math.min(visibleTopCount, post.comments.length))
-    : post.comments
-  const hasMoreTops = isMobileSheet && visibleTopCount < post.comments.length
+    ? commentRows.slice(0, Math.min(visibleTopCount, commentRows.length))
+    : commentRows
+  const hasMoreTops = isMobileSheet && visibleTopCount < commentRows.length
+
+  const revealSidebarComments = async () => {
+    if (!theaterLazyComments || theaterLazyComments.phase !== 'idle') {
+      document.getElementById(`feed-comment-anchor-${post.id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+      return
+    }
+    await theaterLazyComments.onReveal()
+    document.getElementById(`feed-comment-anchor-${post.id}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    })
+  }
 
   useEffect(() => {
     if (!isMobileSheet || !hasMoreTops) return
@@ -89,7 +115,7 @@ export function FeedPostPhotoViewerSidebar({
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            setVisibleTopCount((c) => Math.min(c + MOBILE_THEATER_COMMENT_PAGE, post.comments.length))
+            setVisibleTopCount((c) => Math.min(c + MOBILE_THEATER_COMMENT_PAGE, commentRows.length))
           }
         }
       },
@@ -97,7 +123,7 @@ export function FeedPostPhotoViewerSidebar({
     )
     io.observe(node)
     return () => io.disconnect()
-  }, [isMobileSheet, hasMoreTops, visibleTopCount, post.comments.length])
+  }, [isMobileSheet, hasMoreTops, visibleTopCount, commentRows.length])
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#242526] pb-[env(safe-area-inset-bottom,0px)]">
@@ -163,7 +189,12 @@ export function FeedPostPhotoViewerSidebar({
         </div>
 
         <div className="space-y-0 px-4 py-3">
-          {post.comments.length === 0 ? (
+          {theaterLazyComments?.phase === 'idle' ? null : theaterLazyComments?.phase === 'loading' ? (
+            <div className="flex flex-col items-center gap-3 py-16 text-[#b0b3b8] lg:py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-[#8cb4ff]" aria-hidden />
+              <span className="text-[13px] font-medium">Đang tải bình luận…</span>
+            </div>
+          ) : commentRows.length === 0 ? (
             <p className="py-6 text-center text-[13px] text-[#8a8d92] lg:py-8">
               Chưa có bình luận — hãy là người đầu tiên.
             </p>
@@ -255,19 +286,18 @@ export function FeedPostPhotoViewerSidebar({
             onReact={onReact}
             variant="theater"
             density="compact"
-            commentCount={commentCount(post)}
-            commentsActive={false}
-            onToggleComments={() => {
-              document.getElementById(`feed-comment-anchor-${post.id}`)?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-              })
-            }}
+            commentCount={
+              theaterLazyComments && theaterLazyComments.phase !== 'ready'
+                ? (theaterLazyComments.hintCount ?? commentCount(post))
+                : commentCount(post)
+            }
+            commentsActive={theaterLazyComments ? theaterLazyComments.phase === 'ready' : false}
+            onToggleComments={() => void revealSidebarComments()}
           />
         </div>
       ) : null}
 
-      {currentUserId ? (
+      {currentUserId && (!theaterLazyComments || theaterLazyComments.phase === 'ready') ? (
         <div
           id={`feed-comment-anchor-${post.id}`}
           className="shrink-0 border-t border-white/[0.1] bg-[#242526] px-3 py-3 sm:px-4"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
@@ -11,6 +11,8 @@ import { loadFeedTree, type FeedPostState, feedPostsFingerprint } from './feedQu
 import { FeedComposerGate } from './FeedComposerGate'
 import { publishFamilyFeedPost, type FeedPublishOnProgress } from './publishFeedPost'
 import { FeedPostCard } from './FeedPostCard'
+import { FeedVideoTheaterLayer, buildFeedVideoSlides } from './FeedVideoTheaterLayer'
+import { useAllPostsFeedMediaDisplayUrls } from './useFeedMediaDisplayUrls'
 
 /** Cache trong phiên (ở lại khi đổi tab trong cùng dòng họ). */
 const feedSessionByTree = new Map<string, FeedPostState[]>()
@@ -29,6 +31,8 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
   const [posts, setPosts] = useState<FeedPostState[] | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [videoTheaterOpen, setVideoTheaterOpen] = useState(false)
+  const [videoTheaterIdx, setVideoTheaterIdx] = useState(0)
 
   const highlightPostId = embedOnHome ? searchParams.get('post')?.trim() ?? '' : ''
   const highlightDoneRef = useRef<string | null>(null)
@@ -88,6 +92,30 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
   const handleFeedReload = useCallback(() => {
     void refresh()
   }, [refresh])
+
+  const treeMediaUrls = useAllPostsFeedMediaDisplayUrls(posts)
+  const treeVideoSlides = useMemo(() => buildFeedVideoSlides(posts ?? [], treeMediaUrls), [posts, treeMediaUrls])
+
+  const openVideoSlide = useCallback((i: number) => {
+    setVideoTheaterIdx(i)
+    setVideoTheaterOpen(true)
+  }, [])
+
+  const slideIndexForVideo = useCallback(
+    (postId: string, attachmentIndex: number) => {
+      const i = treeVideoSlides.findIndex((s) => s.postId === postId && s.attachmentIndex === attachmentIndex)
+      return i >= 0 ? i : null
+    },
+    [treeVideoSlides],
+  )
+
+  const videoTheaterApi = useMemo(
+    () =>
+      treeVideoSlides.length > 0
+        ? { openVideoSlide, slideIndexForVideo }
+        : undefined,
+    [treeVideoSlides.length, openVideoSlide, slideIndexForVideo],
+  )
 
   const refreshDebounceMs = 380
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -271,11 +299,30 @@ export function TreeFeedPage({ embedOnHome = false }: { embedOnHome?: boolean })
                 animationDelay: `${Math.min(idx * 52, 620)}ms`,
               }}
             >
-              <FeedPostCard post={p} currentUserId={uid} onReload={handleFeedReload} />
+              <FeedPostCard
+                post={p}
+                currentUserId={uid}
+                onReload={handleFeedReload}
+                videoTheater={videoTheaterApi}
+              />
             </li>
           ))}
         </ul>
       )}
+
+      {posts != null && treeVideoSlides.length > 0 ? (
+        <FeedVideoTheaterLayer
+          open={videoTheaterOpen}
+          slideIndex={videoTheaterIdx}
+          videoSlides={treeVideoSlides}
+          posts={posts}
+          urlByPath={treeMediaUrls}
+          currentUserId={uid}
+          onClose={() => setVideoTheaterOpen(false)}
+          onSlideIndexChange={setVideoTheaterIdx}
+          onInvalidateFeed={() => void handleFeedReload()}
+        />
+      ) : null}
 
       {showFooterExtras ? (
         <p className={`${role.caption} mt-10 flex flex-wrap items-center gap-x-3 gap-y-2`}>

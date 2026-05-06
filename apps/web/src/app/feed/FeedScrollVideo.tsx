@@ -8,10 +8,12 @@ export function FeedScrollVideo({
   src,
   className,
   onError,
+  controls = true,
 }: {
   src: string
   className?: string
   onError?: () => void
+  controls?: boolean
 }) {
   const ref = useRef<HTMLVideoElement>(null)
 
@@ -65,7 +67,7 @@ export function FeedScrollVideo({
       src={src}
       muted
       playsInline
-      controls
+      controls={controls}
       preload="metadata"
       className={className}
       onError={onError}

@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import type { FeedPostState } from './feedQueries'
 import { getFamilyFeedMediaDisplayUrl } from './feedMediaDisplayUrl'
+
+/** Map storage_path → URL cho toàn bộ media trong danh sách bài (bảng tin / hồ sơ). */
+export function useAllPostsFeedMediaDisplayUrls(posts: readonly FeedPostState[] | null | undefined): Record<string, string> {
+  const flat = useMemo(() => (posts ?? []).flatMap((p) => p.media), [posts])
+  return useFeedMediaDisplayUrls(flat)
+}
 
 /** Map storage_path → URL có quyền đọc (signed / public fallback). */
 export function useFeedMediaDisplayUrls(items: readonly { storage_path: string }[]): Record<string, string> {

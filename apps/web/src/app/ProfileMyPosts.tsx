@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { getSupabase } from '../lib/supabase'
@@ -7,6 +7,8 @@ import { FeedPostCard } from './feed/FeedPostCard'
 import { loadMyPostsPage, loadUserTreesForComposer, reloadFeedPostsByIds, type FeedPostState } from './feed/feedQueries'
 import { readStoredProfileTreeId } from './feed/FeedComposer'
 import { FeedComposerGate } from './feed/FeedComposerGate'
+import { FeedVideoTheaterLayer, buildFeedVideoSlides } from './feed/FeedVideoTheaterLayer'
+import { useAllPostsFeedMediaDisplayUrls } from './feed/useFeedMediaDisplayUrls'
 import { publishFamilyFeedPost, type FeedPublishOnProgress } from './feed/publishFeedPost'
 
 const PAGE_SIZE = 12
@@ -35,6 +37,8 @@ export function ProfileMyPosts({
   const [profileTreesLoading, setProfileTreesLoading] = useState(false)
   const [selectedPostTreeId, setSelectedPostTreeId] = useState<string | null>(null)
   const [publishBusy, setPublishBusy] = useState(false)
+  const [videoTheaterOpen, setVideoTheaterOpen] = useState(false)
+  const [videoTheaterIdx, setVideoTheaterIdx] = useState(0)
 
   useEffect(() => {
     if (!composer || !sb || !userId) return
@@ -68,6 +72,28 @@ export function ProfileMyPosts({
       setPosts((prev: FeedPostState[]) => prev.map((p) => (p.id === postId ? next : p)))
     },
     [removePost],
+  )
+
+  const profileMediaUrls = useAllPostsFeedMediaDisplayUrls(posts)
+  const profileVideoSlides = useMemo(() => buildFeedVideoSlides(posts, profileMediaUrls), [posts, profileMediaUrls])
+
+  const openVideoSlide = useCallback((i: number) => {
+    setVideoTheaterIdx(i)
+    setVideoTheaterOpen(true)
+  }, [])
+
+  const slideIndexForVideo = useCallback(
+    (postId: string, attachmentIndex: number) => {
+      const i = profileVideoSlides.findIndex((s) => s.postId === postId && s.attachmentIndex === attachmentIndex)
+      return i >= 0 ? i : null
+    },
+    [profileVideoSlides],
+  )
+
+  const videoTheaterApi = useMemo(
+    () =>
+      profileVideoSlides.length > 0 ? { openVideoSlide, slideIndexForVideo } : undefined,
+    [profileVideoSlides.length, openVideoSlide, slideIndexForVideo],
   )
 
   const loadBatch = useCallback(
@@ -228,11 +254,27 @@ export function ProfileMyPosts({
                 showTreeLink
                 onDeleted={() => removePost(p.id)}
                 onReload={() => void refreshPost(p.id)}
+                videoTheater={videoTheaterApi}
               />
             </li>
           ))}
         </ul>
       )}
+
+      {posts.length > 0 && profileVideoSlides.length > 0 ? (
+        <FeedVideoTheaterLayer
+          open={videoTheaterOpen}
+          slideIndex={videoTheaterIdx}
+          videoSlides={profileVideoSlides}
+          posts={posts}
+          urlByPath={profileMediaUrls}
+          currentUserId={userId}
+          showTreeLink
+          onClose={() => setVideoTheaterOpen(false)}
+          onSlideIndexChange={setVideoTheaterIdx}
+          onInvalidateFeed={(postId) => void refreshPost(postId)}
+        />
+      ) : null}
 
       {hasMore && !initialLoad && posts.length > 0 ? (
         <div ref={sentinelRef} className="flex min-h-[3rem] items-center justify-center py-8" aria-hidden>

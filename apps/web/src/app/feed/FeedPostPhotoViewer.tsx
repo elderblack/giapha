@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ImageOff, X } from 'lucide-react'
 import type { FeedAttachmentItem } from './FeedAttachmentGrid'
 import { useMaxLg } from '../../hooks/useMaxLg'
 
@@ -11,11 +11,24 @@ type Props = {
   startIndex?: number
   items: FeedAttachmentItem[]
   sidebar: ReactNode
-  /** Mobile: thanh Like / Bình luận nổi trên ảnh (bấm comment mở sheet). */
+  /** Thanh Like / Bình luận nổi trên media (bấm comment mở panel/sheet). */
+  floatingBar?: ReactNode
+  /** Theater: thanh nút dọc bên phải (Like/Comment/Share). */
+  rightRail?: ReactNode
+  /** @deprecated dùng `floatingBar` */
   mobileFloatingBar?: ReactNode
   /** Mobile: điều khiển sheet bình luận từ ngoài (đóng viewer cần reset). */
   mobileCommentsOpen?: boolean
   onMobileCommentsOpenChange?: (open: boolean) => void
+  /** Video dọc giữa các bài (cuộn chuột / mũi tên / nút). */
+  verticalReel?: {
+    canPrev: boolean
+    canNext: boolean
+    onPrev: () => void
+    onNext: () => void
+  }
+  /** Ẩn/hiện nút mũi tên lên/xuống (vẫn hỗ trợ cuộn & phím). */
+  showVerticalReelButtons?: boolean
 }
 
 /**
@@ -27,16 +40,25 @@ export function FeedPostPhotoViewer({
   startIndex = 0,
   items,
   sidebar,
+  floatingBar,
+  rightRail,
   mobileFloatingBar,
   mobileCommentsOpen: commentsOpenControlled,
   onMobileCommentsOpenChange,
+  verticalReel,
+  showVerticalReelButtons = true,
 }: Props) {
   const maxLg = useMaxLg()
   const prevOverflow = useRef<string | null>(null)
+  const reelSectionRef = useRef<HTMLElement | null>(null)
+  const reelWheelLock = useRef(false)
+  const reelTouchStartY = useRef<number | null>(null)
   const [index, setIndex] = useState(() => clampIndex(startIndex, items.length))
   const [uncontrolledSheet, setUncontrolledSheet] = useState(false)
-  const sheetOpen = commentsOpenControlled ?? uncontrolledSheet
-  const setSheetOpen = onMobileCommentsOpenChange ?? setUncontrolledSheet
+  const commentsOpen = commentsOpenControlled ?? uncontrolledSheet
+  const setCommentsOpen = onMobileCommentsOpenChange ?? setUncontrolledSheet
+  const reelOn = Boolean(verticalReel)
+  const bar = floatingBar ?? mobileFloatingBar
 
   useEffect(() => {
     if (!open || !items.length) return
@@ -50,8 +72,8 @@ export function FeedPostPhotoViewer({
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (maxLg && sheetOpen) {
-          setSheetOpen(false)
+        if (commentsOpen) {
+          setCommentsOpen(false)
           return
         }
         onClose()
@@ -62,19 +84,55 @@ export function FeedPostPhotoViewer({
       if (e.key === 'ArrowRight' && items.length > 1) {
         setIndex((i) => (i + 1) % items.length)
       }
+      if (verticalReel && e.key === 'ArrowUp' && verticalReel.canPrev) {
+        e.preventDefault()
+        verticalReel.onPrev()
+      }
+      if (verticalReel && e.key === 'ArrowDown' && verticalReel.canNext) {
+        e.preventDefault()
+        verticalReel.onNext()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = prevOverflow.current ?? ''
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, onClose, items.length, maxLg, sheetOpen, setSheetOpen])
+  }, [open, onClose, items.length, commentsOpen, setCommentsOpen, verticalReel])
 
   useEffect(() => {
     if (!open && commentsOpenControlled == null) {
       queueMicrotask(() => setUncontrolledSheet(false))
     }
   }, [open, commentsOpenControlled])
+
+  useEffect(() => {
+    if (!open || !verticalReel) return
+    const el = reelSectionRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (reelWheelLock.current) return
+      const dy = e.deltaY
+      if (Math.abs(dy) < 24) return
+      if (dy > 0 && verticalReel.canNext) {
+        e.preventDefault()
+        verticalReel.onNext()
+        reelWheelLock.current = true
+        window.setTimeout(() => {
+          reelWheelLock.current = false
+        }, 420)
+      } else if (dy < 0 && verticalReel.canPrev) {
+        e.preventDefault()
+        verticalReel.onPrev()
+        reelWheelLock.current = true
+        window.setTimeout(() => {
+          reelWheelLock.current = false
+        }, 420)
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [open, verticalReel])
 
   const prev = useCallback(() => {
     setIndex((i) => (i + items.length - 1) % items.length)
@@ -88,6 +146,13 @@ export function FeedPostPhotoViewer({
 
   const safeItems = items
   const current = safeItems[index]
+  const horizNav = safeItems.length > 1
+  // Nếu có right rail (like/comment/share), đẩy nút lên/xuống sang trái để không đè lên nhau.
+  const reelBtnRight = rightRail
+    ? 'right-[4.25rem] sm:right-[4.75rem] lg:right-[5.25rem]'
+    : reelOn && horizNav
+      ? 'right-12 sm:right-14'
+      : 'right-2 sm:right-4'
 
   return createPortal(
     <div
@@ -96,8 +161,42 @@ export function FeedPostPhotoViewer({
       aria-modal="true"
     >
       <section
+        ref={reelSectionRef}
         className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#000000] lg:min-h-0"
         aria-roledescription="carousel"
+        onTouchStart={
+          verticalReel
+            ? (e) => {
+                reelTouchStartY.current = e.changedTouches[0]?.clientY ?? null
+              }
+            : undefined
+        }
+        onTouchEnd={
+          verticalReel
+            ? (e) => {
+                if (!verticalReel || reelTouchStartY.current == null) return
+                const startY = reelTouchStartY.current
+                reelTouchStartY.current = null
+                const endY = e.changedTouches[0]?.clientY
+                if (endY == null || reelWheelLock.current) return
+                const delta = startY - endY
+                if (Math.abs(delta) < 52) return
+                if (delta > 0 && verticalReel.canNext) {
+                  verticalReel.onNext()
+                  reelWheelLock.current = true
+                  window.setTimeout(() => {
+                    reelWheelLock.current = false
+                  }, 420)
+                } else if (delta < 0 && verticalReel.canPrev) {
+                  verticalReel.onPrev()
+                  reelWheelLock.current = true
+                  window.setTimeout(() => {
+                    reelWheelLock.current = false
+                  }, 420)
+                }
+              }
+            : undefined
+        }
       >
         <div className="pointer-events-none absolute left-3 top-3 z-30 flex gap-2 sm:left-4 sm:top-4 lg:left-4 lg:top-4">
           <button
@@ -113,7 +212,7 @@ export function FeedPostPhotoViewer({
           </button>
         </div>
 
-        {safeItems.length > 1 ? (
+        {horizNav ? (
           <>
             <button
               type="button"
@@ -140,6 +239,43 @@ export function FeedPostPhotoViewer({
           </>
         ) : null}
 
+        {showVerticalReelButtons && verticalReel && (verticalReel.canPrev || verticalReel.canNext) ? (
+          <div
+            className={`pointer-events-auto absolute top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2 ${reelBtnRight}`}
+          >
+            <button
+              type="button"
+              disabled={!verticalReel.canPrev}
+              onClick={(e) => {
+                e.stopPropagation()
+                verticalReel.onPrev()
+              }}
+              className="flex rounded-full bg-white/12 p-2 text-white ring-1 ring-white/22 backdrop-blur-sm transition hover:bg-white/22 disabled:pointer-events-none disabled:opacity-35 sm:p-2.5"
+              aria-label="Video trước"
+            >
+              <ChevronUp className="h-7 w-7 sm:h-8 sm:w-8" aria-hidden />
+            </button>
+            <button
+              type="button"
+              disabled={!verticalReel.canNext}
+              onClick={(e) => {
+                e.stopPropagation()
+                verticalReel.onNext()
+              }}
+              className="flex rounded-full bg-white/12 p-2 text-white ring-1 ring-white/22 backdrop-blur-sm transition hover:bg-white/22 disabled:pointer-events-none disabled:opacity-35 sm:p-2.5"
+              aria-label="Video tiếp theo"
+            >
+              <ChevronDown className="h-7 w-7 sm:h-8 sm:w-8" aria-hidden />
+            </button>
+          </div>
+        ) : null}
+
+        {rightRail ? (
+          <div className="pointer-events-none absolute inset-y-0 right-2 z-30 flex items-center sm:right-3 lg:right-4">
+            <div className="pointer-events-auto">{rightRail}</div>
+          </div>
+        ) : null}
+
         <div
           className={`flex min-h-0 w-full flex-1 items-center justify-center bg-[#000000] px-2 pt-14 [-webkit-tap-highlight-color:transparent] sm:px-6 lg:pb-10 lg:pt-12 ${
             maxLg ? 'pb-[max(5.5rem,env(safe-area-inset-bottom,0px))]' : 'pb-3'
@@ -148,9 +284,13 @@ export function FeedPostPhotoViewer({
           <ViewerStage key={current.key} item={current} fullBleed={maxLg} />
         </div>
 
-        {maxLg && mobileFloatingBar ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 border-t border-white/[0.12] bg-gradient-to-t from-black/85 via-black/50 to-transparent pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-10">
-            <div className="pointer-events-auto px-2">{mobileFloatingBar}</div>
+        {bar ? (
+          <div
+            className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 border-t border-white/[0.12] bg-gradient-to-t from-black/85 via-black/50 to-transparent pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-10 ${
+              maxLg ? '' : 'lg:pb-3'
+            }`}
+          >
+            <div className="pointer-events-auto px-2">{bar}</div>
           </div>
         ) : null}
 
@@ -159,19 +299,31 @@ export function FeedPostPhotoViewer({
         </p>
       </section>
 
-      {!maxLg ? (
+      {!maxLg && commentsOpen ? (
         <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#393a3f] bg-[#242526] text-[#e4e6eb] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:h-full lg:max-h-none lg:min-h-0 lg:w-[min(420px,_40vw)] lg:flex-none lg:shrink-0 lg:border-l lg:border-t-0">
+          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.08] px-2 py-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-[12px] font-semibold text-[#e4e6eb] ring-1 ring-white/15 transition hover:bg-white/16"
+              onClick={() => setCommentsOpen(false)}
+              aria-label="Thu gọn bình luận"
+              title="Thu gọn"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden />
+              Thu gọn
+            </button>
+          </div>
           {sidebar}
         </aside>
       ) : null}
 
-      {maxLg && sheetOpen ? (
+      {maxLg && commentsOpen ? (
         <>
           <button
             type="button"
             className="fixed inset-0 z-[120] bg-black/55 backdrop-blur-[2px]"
             aria-label="Đóng bình luận"
-            onClick={() => setSheetOpen(false)}
+            onClick={() => setCommentsOpen(false)}
           />
           <div className="fixed inset-x-0 bottom-0 z-[125] flex max-h-[min(88dvh,820px)] flex-col rounded-t-[1.25rem] border-t border-[#393a3f] bg-[#242526] shadow-[0_-12px_48px_rgba(0,0,0,0.45)]">
             <div className="flex shrink-0 justify-center border-b border-white/[0.08] py-2 pt-2.5">
