@@ -4,7 +4,6 @@ import { MessageCircle, MoreHorizontal, Share2, ThumbsUp } from 'lucide-react'
 import { buildFeedAttachmentItems } from './FeedAttachmentGrid'
 import { FeedPostPhotoViewer } from './FeedPostPhotoViewer'
 import { FeedPostPhotoViewerSidebar } from './FeedPostPhotoViewerSidebar'
-import { FeedReactionBar } from './FeedReactionBar'
 import {
   loadFeedPostComments,
   type FeedCommentRow,
