@@ -41,10 +41,19 @@ export async function fetchChatThreads(sb: SupabaseClient, uid: string): Promise
   }
 
   const profileMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>()
+  const nicknameByPeer = new Map<string, string>()
   if (otherUserIds.size > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id,full_name,avatar_url').in('id', [...otherUserIds])
+    const ids = [...otherUserIds]
+    const [{ data: profiles }, { data: nickRows }] = await Promise.all([
+      sb.from('profiles').select('id,full_name,avatar_url').in('id', ids),
+      sb.from('family_chat_peer_nicknames').select('peer_user_id,nickname').eq('viewer_user_id', uid).in('peer_user_id', ids),
+    ])
     for (const p of (profiles ?? []) as { id: string; full_name: string; avatar_url: string | null }[]) {
       profileMap.set(p.id, p)
+    }
+    for (const row of (nickRows ?? []) as { peer_user_id: string; nickname: string }[]) {
+      const n = row.nickname?.trim()
+      if (n) nicknameByPeer.set(row.peer_user_id, n)
     }
   }
 
@@ -75,7 +84,8 @@ export async function fetchChatThreads(sb: SupabaseClient, uid: string): Promise
       .gt('created_at', lastRead ?? '1970-01-01T00:00:00Z')
     const unreadCount = unreadCountRaw ?? 0
 
-    const threadTitle = isGroup ? (conv.title?.trim() || 'Nhóm') : (otherProfile?.full_name ?? 'Người dùng')
+    const threadTitle =
+      isGroup ? (conv.title?.trim() || 'Nhóm') : (nicknameByPeer.get(primaryOtherId) ?? otherProfile?.full_name ?? 'Người dùng')
 
     results.push({
       conversation: conv,

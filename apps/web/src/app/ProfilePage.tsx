@@ -7,6 +7,7 @@ import { getSupabase } from '../lib/supabase'
 import { ProfileMyPosts } from './ProfileMyPosts'
 import { CoverCropModal } from './profile/CoverCropModal'
 import { ProfileAboutView } from './profile/ProfileAboutView'
+import { publishProfileMediaToFamilyFeed } from './profile/publishProfileMediaToFamilyFeed'
 import { ProfilePhotosTab } from './profile/ProfilePhotosTab'
 
 type ProfileRow = {
@@ -151,6 +152,11 @@ export function ProfilePage() {
     }
     setProfile((p) => (p ? { ...p, avatar_url: publicUrl } : p))
     setSaveMsg('Đã cập nhật ảnh đại diện.')
+    void publishProfileMediaToFamilyFeed({
+      userId: user.id,
+      bodyDraft: 'Đã cập nhật ảnh đại diện.',
+      file,
+    })
   }
 
   async function uploadCoverFromCrop(blob: Blob) {
@@ -181,6 +187,11 @@ export function ProfilePage() {
       }
       setProfile((p) => (p ? { ...p, cover_url: publicUrl } : p))
       setSaveMsg('Đã cập nhật ảnh bìa.')
+      void publishProfileMediaToFamilyFeed({
+        userId: user.id,
+        bodyDraft: 'Đã cập nhật ảnh bìa.',
+        file: new File([blob], 'cover.jpg', { type: 'image/jpeg' }),
+      })
       if (revokeUrl) URL.revokeObjectURL(revokeUrl)
       setCoverCropSrc(null)
     } finally {

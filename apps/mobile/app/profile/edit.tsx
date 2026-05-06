@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Text } from '@/components/Themed'
 import { useAuth } from '@/context/useAuth'
 import { usePalette } from '@/hooks/usePalette'
+import { publishProfilePickerAssetToFamilyFeed } from '@/lib/profile/publishProfileMediaToFamilyFeed'
 import { uploadProfileImageFromPickerUri } from '@/lib/profile/uploadProfileImage'
 import { getSupabase, hasSupabaseCredentials } from '@/lib/supabase'
 import { Font } from '@/theme/typography'
@@ -114,9 +115,10 @@ export default function ProfileEditScreen() {
       quality: 0.88,
     })
     if (res.canceled || !res.assets[0]?.uri) return
+    const picked = res.assets[0]
     setAvatarBusy(true)
     setMsg(null)
-    const up = await uploadProfileImageFromPickerUri(sb, { userId: uid, uri: res.assets[0].uri, kind: 'avatar' })
+    const up = await uploadProfileImageFromPickerUri(sb, { userId: uid, uri: picked.uri, kind: 'avatar' })
     setAvatarBusy(false)
     if ('error' in up) {
       setMsg({ kind: 'err', text: up.error })
@@ -129,6 +131,16 @@ export default function ProfileEditScreen() {
     }
     setAvatarUrl(up.publicUrl)
     setMsg({ kind: 'ok', text: 'Đã cập nhật ảnh đại diện.' })
+    void publishProfilePickerAssetToFamilyFeed(sb, {
+      userId: uid,
+      bodyDraft: 'Đã cập nhật ảnh đại diện.',
+      asset: {
+        uri: picked.uri,
+        mimeType: picked.mimeType ?? null,
+        type: 'image',
+        fileName: picked.fileName ?? null,
+      },
+    })
   }
 
   async function pickCover() {
@@ -142,9 +154,10 @@ export default function ProfileEditScreen() {
       quality: 0.85,
     })
     if (res.canceled || !res.assets[0]?.uri) return
+    const pickedCov = res.assets[0]
     setCoverBusy(true)
     setMsg(null)
-    const up = await uploadProfileImageFromPickerUri(sb, { userId: uid, uri: res.assets[0].uri, kind: 'cover' })
+    const up = await uploadProfileImageFromPickerUri(sb, { userId: uid, uri: pickedCov.uri, kind: 'cover' })
     setCoverBusy(false)
     if ('error' in up) {
       setMsg({ kind: 'err', text: up.error })
@@ -157,6 +170,16 @@ export default function ProfileEditScreen() {
     }
     setCoverUrl(up.publicUrl)
     setMsg({ kind: 'ok', text: 'Đã cập nhật ảnh bìa.' })
+    void publishProfilePickerAssetToFamilyFeed(sb, {
+      userId: uid,
+      bodyDraft: 'Đã cập nhật ảnh bìa.',
+      asset: {
+        uri: pickedCov.uri,
+        mimeType: pickedCov.mimeType ?? null,
+        type: 'image',
+        fileName: pickedCov.fileName ?? null,
+      },
+    })
   }
 
   async function saveFields() {

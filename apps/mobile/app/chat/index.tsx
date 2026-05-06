@@ -71,6 +71,16 @@ export default function ChatThreadsScreen() {
         { event: 'UPDATE', schema: 'public', table: 'family_chat_participants', filter: `user_id=eq.${uid}` },
         () => void load({ silent: true }),
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'family_chat_peer_nicknames',
+          filter: `viewer_user_id=eq.${uid}`,
+        },
+        () => void load({ silent: true }),
+      )
       .subscribe()
     return () => void sb.removeChannel(ch)
   }, [sb, uid, load])

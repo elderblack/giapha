@@ -2,13 +2,14 @@ import FontAwesome from '@expo/vector-icons/FontAwesome'
 import * as ImagePicker from 'expo-image-picker'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -44,6 +45,11 @@ export default function ChatConversationScreen() {
     Record<string, { full_name: string; avatar_url: string | null }>
   >({})
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null)
+  const [dmPeerId, setDmPeerId] = useState<string | null>(null)
+  const [dmNickname, setDmNickname] = useState<string | null>(null)
+  const [nickModalOpen, setNickModalOpen] = useState(false)
+  const [nickDraft, setNickDraft] = useState('')
+  const [nickSaving, setNickSaving] = useState(false)
   const listRef = useRef<FlatList<ChatMessage>>(null)
 
   const kbBehavior: KeyboardAvoidingViewProps['behavior'] =
@@ -65,6 +71,8 @@ export default function ChatConversationScreen() {
     }
 
     if (isGroup) {
+      setDmPeerId(null)
+      setDmNickname(null)
       setConvTitle(title || 'Nhóm')
       if (userIds.length) {
         const { data: profs } = await sb.from('profiles').select('id,full_name,avatar_url').in('id', userIds)
@@ -79,15 +87,82 @@ export default function ChatConversationScreen() {
 
     const otherId = userIds.find((id) => id !== uid)
     if (otherId) {
-      const { data: prof } = await sb.from('profiles').select('full_name,avatar_url').eq('id', otherId).maybeSingle()
+      const [{ data: prof }, { data: nickRow }] = await Promise.all([
+        sb.from('profiles').select('full_name,avatar_url').eq('id', otherId).maybeSingle(),
+        sb
+          .from('family_chat_peer_nicknames')
+          .select('nickname')
+          .eq('viewer_user_id', uid)
+          .eq('peer_user_id', otherId)
+          .maybeSingle(),
+      ])
       const pr = prof as { full_name?: string; avatar_url?: string | null } | null
       const nm = typeof pr?.full_name === 'string' ? pr.full_name : 'Người dùng'
-      setConvTitle(nm)
+      const nickRaw = (nickRow as { nickname?: string } | null)?.nickname?.trim()
+      setDmPeerId(otherId)
+      setDmNickname(nickRaw || null)
+      setConvTitle(nickRaw || nm)
       setProfileByUserId({ [otherId]: { full_name: nm, avatar_url: pr?.avatar_url ?? null } })
     } else {
+      setDmPeerId(null)
+      setDmNickname(null)
       setConvTitle('Tin nhắn')
     }
   }, [sb, uid, conversationId])
+
+  useEffect(() => {
+    if (!sb || !uid || !conversationId) return
+    const ch = sb
+      .channel(`nick-sync-${conversationId}-${uid}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'family_chat_peer_nicknames',
+          filter: `viewer_user_id=eq.${uid}`,
+        },
+        () => void loadTitles(),
+      )
+      .subscribe()
+    return () => void sb.removeChannel(ch)
+  }, [sb, uid, conversationId, loadTitles])
+
+  const saveDmNickname = useCallback(async () => {
+    if (!sb || !uid || !dmPeerId) return
+    const trimmed = nickDraft.trim()
+    setNickSaving(true)
+    try {
+      if (trimmed.length === 0) {
+        const { error } = await sb
+          .from('family_chat_peer_nicknames')
+          .delete()
+          .eq('viewer_user_id', uid)
+          .eq('peer_user_id', dmPeerId)
+        if (error) {
+          Alert.alert('Không xóa được', error.message)
+          return
+        }
+      } else {
+        const { error } = await sb.from('family_chat_peer_nicknames').upsert(
+          {
+            viewer_user_id: uid,
+            peer_user_id: dmPeerId,
+            nickname: trimmed,
+          },
+          { onConflict: 'viewer_user_id,peer_user_id' },
+        )
+        if (error) {
+          Alert.alert('Không lưu được', error.message)
+          return
+        }
+      }
+      setNickModalOpen(false)
+      await loadTitles()
+    } finally {
+      setNickSaving(false)
+    }
+  }, [sb, uid, dmPeerId, nickDraft, loadTitles])
 
   const loadMessages = useCallback(async () => {
     if (!sb || !conversationId) {
@@ -240,9 +315,33 @@ export default function ChatConversationScreen() {
     )
   }
 
+  const headerOptions = useMemo(
+    () => ({
+      title: convTitle,
+      headerRight:
+        dmPeerId != null ?
+          () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Đặt biệt danh"
+              hitSlop={12}
+              onPress={() => {
+                setNickDraft(dmNickname ?? '')
+                setNickModalOpen(true)
+              }}
+              style={{ paddingRight: 16, paddingVertical: 6 }}
+            >
+              <FontAwesome name="pencil" size={18} color={p.accent} />
+            </Pressable>
+          )
+        : undefined,
+    }),
+    [convTitle, dmPeerId, dmNickname, p.accent],
+  )
+
   return (
     <>
-      <Stack.Screen options={{ title: convTitle }} />
+      <Stack.Screen options={headerOptions} />
       <KeyboardAvoidingView style={[styles.flex, { backgroundColor: p.canvas }]} behavior={kbBehavior}>
         {loading ? (
           <View style={styles.flexCenter}>
@@ -301,6 +400,50 @@ export default function ChatConversationScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      <Modal
+        transparent
+        visible={nickModalOpen}
+        animationType="fade"
+        onRequestClose={() => (nickSaving ? undefined : setNickModalOpen(false))}
+      >
+        <Pressable style={styles.nickBackdrop} onPress={() => (nickSaving ? undefined : setNickModalOpen(false))}>
+          <Pressable style={[styles.nickCard, { backgroundColor: p.surfaceElevated, borderColor: p.border }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.nickSheetTitle, { color: p.ink, fontFamily: Font.semiBold }]}>Biệt danh</Text>
+            {dmPeerId && profileByUserId[dmPeerId] ?
+              <Text style={[styles.nickHint, { color: p.muted, fontFamily: Font.regular }]}>
+                Chỉ bạn nhìn thấy. Họ tên trong hệ thống{' '}
+                <Text style={{ fontFamily: Font.semiBold, color: p.ink }}>{profileByUserId[dmPeerId].full_name}</Text>.
+                Để trống và Lưu sẽ xóa biệt danh.
+              </Text>
+            : null}
+            <TextInput
+              placeholder="VD: Ba, Em…"
+              placeholderTextColor={p.muted}
+              value={nickDraft}
+              editable={!nickSaving}
+              onChangeText={setNickDraft}
+              maxLength={48}
+              style={[styles.nickInput, { color: p.ink, fontFamily: Font.regular, backgroundColor: p.canvasMuted, borderColor: p.border }]}
+            />
+            <View style={styles.nickBtns}>
+              <Pressable
+                disabled={nickSaving}
+                onPress={() => (nickSaving ? undefined : setNickModalOpen(false))}
+                style={[styles.nickBtnGhost, { borderColor: p.border }]}
+              >
+                <Text style={{ color: p.ink, fontFamily: Font.semiBold }}>Hủy</Text>
+              </Pressable>
+              <Pressable
+                disabled={nickSaving}
+                onPress={() => void saveDmNickname()}
+                style={[styles.nickBtnPrimary, { backgroundColor: p.accent, opacity: nickSaving ? 0.6 : 1 }]}
+              >
+                <Text style={{ color: '#FFF', fontFamily: Font.semiBold }}>{nickSaving ? 'Đang lưu…' : 'Lưu'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   )
 }
@@ -432,5 +575,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 1,
+  },
+  nickBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 22,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  nickCard: {
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  nickSheetTitle: {
+    fontSize: 17,
+    marginBottom: 6,
+  },
+  nickHint: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  nickInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 16,
+  },
+  nickBtns: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 16,
+  },
+  nickBtnGhost: {
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  nickBtnPrimary: {
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 20,
   },
 })

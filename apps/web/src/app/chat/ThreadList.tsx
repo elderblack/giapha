@@ -1,6 +1,7 @@
 import { MessageCircle, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { role } from '../../design/roles'
+import { ChatUserAvatar } from './ChatUserAvatar'
 import { ThreadListSkeleton } from './ChatSkeletons'
 import type { ChatThreadPreview } from './types'
 
@@ -54,16 +55,8 @@ export function ThreadList(props: {
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-abnb-primary/12 text-abnb-primary ring-2 ring-abnb-canvas">
             <Users className="h-5 w-5" strokeWidth={2} aria-hidden />
           </span>
-        ) : t.otherUser.avatar_url ? (
-          <img
-            src={t.otherUser.avatar_url}
-            alt=""
-            className="h-11 w-11 shrink-0 rounded-full object-cover"
-          />
         ) : (
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-abnb-surfaceStrong text-[15px] font-semibold text-abnb-ink">
-            {t.otherUser.full_name[0]?.toUpperCase() ?? '?'}
-          </span>
+          <ChatUserAvatar avatarUrl={t.otherUser.avatar_url} size="md" />
         )
         const inner = (
           <>
