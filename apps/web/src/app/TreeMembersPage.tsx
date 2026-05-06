@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Link2, Loader2, Pencil, Trash2, UserPlus, Users } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { Link2, Loader2, Pencil, Search, Trash2, UserPlus, Users } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { role } from '../design/roles'
 import { getSupabase } from '../lib/supabase'
@@ -85,6 +85,71 @@ export function TreeMembersPage() {
   const [accountRows, setAccountRows] = useState<AccountRoleRow[] | null>(null)
   const [accountErr, setAccountErr] = useState<string | null>(null)
   const [roleBusyUserId, setRoleBusyUserId] = useState<string | null>(null)
+
+  const [memberSearchQ, setMemberSearchQ] = useState('')
+  const [memberFilterGender, setMemberFilterGender] = useState<'all' | 'male' | 'female' | 'other'>('all')
+  const [memberFilterGenKey, setMemberFilterGenKey] = useState<string>('')
+  const [memberFilterLinked, setMemberFilterLinked] = useState<'all' | 'linked' | 'unlinked'>('all')
+
+  const memberGenerationOptions = useMemo(() => {
+    if (!members?.length) return []
+    const g = new Set<number>()
+    for (const m of members) {
+      g.add(generations.get(m.id) ?? 0)
+    }
+    return [...g].sort((a, b) => a - b)
+  }, [members, generations])
+
+  const filteredMembersSorted = useMemo(() => {
+    if (!members) return []
+    const needle = memberSearchQ.trim().toLowerCase()
+    let list = members.filter((m) => {
+      if (memberFilterGender !== 'all') {
+        if ((m.gender ?? '') !== memberFilterGender) return false
+      }
+      if (memberFilterGenKey !== '') {
+        const want = Number.parseInt(memberFilterGenKey, 10)
+        if (!Number.isFinite(want)) return false
+        if ((generations.get(m.id) ?? 0) !== want) return false
+      }
+      if (memberFilterLinked === 'linked' && !m.linked_profile_id) return false
+      if (memberFilterLinked === 'unlinked' && m.linked_profile_id) return false
+      return true
+    })
+    if (needle) {
+      list = list.filter((m) => {
+        if (m.full_name.toLowerCase().includes(needle)) return true
+        const ph = m.phone?.trim().toLowerCase()
+        if (ph && ph.includes(needle)) return true
+        const notes = m.notes?.trim().toLowerCase()
+        if (notes && notes.includes(needle)) return true
+        return false
+      })
+    }
+    list.sort((a, b) => a.full_name.localeCompare(b.full_name, 'vi'))
+    if (editingId) {
+      const has = list.some((m) => m.id === editingId)
+      if (!has) {
+        const em = members.find((m) => m.id === editingId)
+        if (em) list = [em, ...list]
+      }
+    }
+    return list
+  }, [
+    members,
+    generations,
+    memberSearchQ,
+    memberFilterGender,
+    memberFilterGenKey,
+    memberFilterLinked,
+    editingId,
+  ])
+
+  const membersFiltersActive =
+    memberSearchQ.trim() !== '' ||
+    memberFilterGender !== 'all' ||
+    memberFilterGenKey !== '' ||
+    memberFilterLinked !== 'all'
 
   const startEdit = useCallback(
     (m: MemberRow) => {
@@ -513,8 +578,117 @@ export function TreeMembersPage() {
           </p>
         </div>
       ) : (
+        <div className="space-y-4">
+          <div
+            className={`${role.cardQuiet} space-y-4 rounded-abnb-xl border border-abnb-hairlineSoft/80 p-4 sm:p-5`}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className={`${role.caption} font-semibold uppercase tracking-wide text-abnb-muted`}>
+                Tìm & lọc
+              </p>
+              {membersFiltersActive ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMemberSearchQ('')
+                    setMemberFilterGender('all')
+                    setMemberFilterGenKey('')
+                    setMemberFilterLinked('all')
+                  }}
+                  className="self-start rounded-full border border-abnb-hairlineSoft px-3 py-1 text-[12px] font-semibold text-abnb-muted transition-colors hover:bg-abnb-surfaceSoft sm:self-auto"
+                >
+                  Xóa bộ lọc
+                </button>
+              ) : null}
+            </div>
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-abnb-muted"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={memberSearchQ}
+                onChange={(e) => setMemberSearchQ(e.target.value)}
+                placeholder="Tìm theo tên, SĐT hoặc ghi chú…"
+                autoComplete="off"
+                className={`${role.input} w-full pl-10`}
+                aria-label="Tìm thành viên"
+              />
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="min-w-[140px] flex-1">
+                <label htmlFor="members-filter-gender" className={`${role.caption} text-abnb-body`}>
+                  Giới tính
+                </label>
+                <select
+                  id="members-filter-gender"
+                  value={memberFilterGender}
+                  onChange={(e) =>
+                    setMemberFilterGender(e.target.value as 'all' | 'male' | 'female' | 'other')
+                  }
+                  className={`${role.input} mt-1.5 w-full`}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+              <div className="min-w-[140px] flex-1">
+                <label htmlFor="members-filter-gen" className={`${role.caption} text-abnb-body`}>
+                  Thế hệ (trên sơ đồ)
+                </label>
+                <select
+                  id="members-filter-gen"
+                  value={memberFilterGenKey}
+                  onChange={(e) => setMemberFilterGenKey(e.target.value)}
+                  className={`${role.input} mt-1.5 w-full`}
+                >
+                  <option value="">Tất cả</option>
+                  {memberGenerationOptions.map((n) => (
+                    <option key={n} value={String(n)}>
+                      Thế hệ {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-[160px] flex-1">
+                <label htmlFor="members-filter-linked" className={`${role.caption} text-abnb-body`}>
+                  Liên kết tài khoản
+                </label>
+                <select
+                  id="members-filter-linked"
+                  value={memberFilterLinked}
+                  onChange={(e) =>
+                    setMemberFilterLinked(e.target.value as 'all' | 'linked' | 'unlinked')
+                  }
+                  className={`${role.input} mt-1.5 w-full`}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="linked">Đã liên kết</option>
+                  <option value="unlinked">Chưa liên kết</option>
+                </select>
+              </div>
+            </div>
+            <p className={`${role.caption}`}>
+              Hiển thị{' '}
+              <span className="font-semibold text-abnb-ink">{filteredMembersSorted.length}</span> /{' '}
+              {members.length} thành viên
+            </p>
+          </div>
+
+          {filteredMembersSorted.length === 0 ? (
+            <div
+              className={`${role.cardQuiet} rounded-abnb-xl border border-dashed border-abnb-hairlineSoft px-8 py-12 text-center`}
+            >
+              <p className={`${role.bodyMd} text-abnb-muted`}>
+                Không có thành viên khớp tìm kiếm hoặc bộ lọc. Thử chỉnh từ khóa hoặc xóa bộ lọc.
+              </p>
+            </div>
+          ) : (
         <ul className="space-y-4">
-          {members.map((m) => {
+          {filteredMembersSorted.map((m) => {
             const parentOptions = members.filter((x) => x.id !== m.id)
             const spouseOptions = members.filter((x) => x.id !== m.id)
             const isEditing = editingId === m.id
@@ -973,6 +1147,8 @@ export function TreeMembersPage() {
             )
           })}
         </ul>
+          )}
+        </div>
       )}
 
       {isOwner ? (
