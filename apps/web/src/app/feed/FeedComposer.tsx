@@ -140,6 +140,7 @@ export function FeedComposer({
         next.push({
           key: `p-${seqRef.current}-${previewKey(f, next.length)}`,
           url,
+          fullUrl: url,
           kind: fileKindForPreview(f),
           file: f,
         })

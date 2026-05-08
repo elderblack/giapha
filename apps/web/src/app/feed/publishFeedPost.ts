@@ -326,8 +326,7 @@ export async function publishFamilyFeedPost(params: {
                 contentType: part.mime,
                 accessToken,
                 httpCfg,
-                onProgress: (loaded, total) => {
-                  const t = total > 0 ? total : part.blob.size
+                onProgress: (loaded) => {
                   emitUpload({
                     phase: 'uploading',
                     fileIndex,
