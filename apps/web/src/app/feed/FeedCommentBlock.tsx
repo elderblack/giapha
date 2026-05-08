@@ -5,6 +5,7 @@ import { role } from '../../design/roles'
 import type { FeedCommentReactionRow, FeedCommentRow, FeedProfileLite } from './feedQueries'
 import type { FeedReactionKind } from './reactionKinds'
 import { FEED_REACTION_KINDS, FEED_REACTION_VI, reactionEmoji } from './reactionKinds'
+import { profileAvatarDisplayUrl } from '../../lib/profileAvatarUrl'
 import { feedUserProfilePath } from './feedProfileHref'
 import { formatFeedRelativeVi } from './feedDate'
 import { usePointerFine } from './usePointerFine'
@@ -104,6 +105,7 @@ function FeedCommentBlockInner({
 
   const avSize = isReply ? 'h-8 w-8' : 'h-9 w-9'
   const timeShort = formatFeedRelativeVi(comment.created_at)
+  const avatarSrc = comment.profiles ? profileAvatarDisplayUrl(comment.profiles) : null
 
   return (
     <div className={`flex gap-2 ${isReply ? 'mt-2' : ''}`}>
@@ -114,9 +116,9 @@ function FeedCommentBlockInner({
         }`}
         aria-label={`Hồ sơ ${label}`}
       >
-        {comment.profiles?.avatar_url ? (
+        {avatarSrc ? (
           <img
-            src={comment.profiles.avatar_url}
+            src={avatarSrc}
             alt=""
             className={`${avSize} rounded-full object-cover ring-1 ${
               isFeed ? 'ring-abnb-hairlineSoft/80' : 'ring-white/10'

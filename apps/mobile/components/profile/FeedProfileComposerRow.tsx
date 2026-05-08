@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Image } from 'expo-image'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { Text } from '@/components/Themed'
 import { usePalette } from '@/hooks/usePalette'
@@ -41,7 +42,13 @@ export function FeedProfileComposerRow({
     >
       <View style={[styles.avatarSm, { borderColor: p.border }]}>
         {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          <Image
+            source={{ uri: avatarUrl }}
+            style={styles.avatarImg}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={avatarUrl}
+          />
         ) : (
           <LinearGradient colors={[p.accent, '#DD2476']} style={styles.avatarImg} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }}>
             <Text style={[styles.initials, { fontFamily: Font.bold }]}>{initials[0]?.toUpperCase() ?? '?'}</Text>

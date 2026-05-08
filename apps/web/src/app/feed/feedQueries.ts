@@ -6,12 +6,21 @@ export type FeedProfileLite = {
   id: string
   full_name: string
   avatar_url: string | null
+  /** Đường dẫn trong bucket profile-media — ảnh nhỏ cho lưới/tin. */
+  avatar_thumb_path?: string | null
 }
 
 export type FeedMediaRow = {
   id: string
   post_id: string
   storage_path: string
+  /** Bucket của file gốc (`storage_path`). Mặc định family-feed-media. */
+  storage_bucket?: string | null
+  thumb_path?: string | null
+  medium_path?: string | null
+  poster_path?: string | null
+  media_width?: number | null
+  media_height?: number | null
   media_kind: 'image' | 'video'
   sort_order: number
 }
@@ -59,11 +68,21 @@ export type FeedPostState = {
   >
 }
 
-function publicFeedMediaUrl(storagePath: string): string | null {
+/** URL công khai cho một object trong bucket Storage. */
+export function getStoragePublicUrl(bucket: string, storagePath: string): string | null {
   const sb = getSupabase()
-  if (!sb) return null
-  const { data } = sb.storage.from('family-feed-media').getPublicUrl(storagePath)
+  if (!sb || !storagePath?.trim()) return null
+  const { data } = sb.storage.from(bucket).getPublicUrl(storagePath.trim())
   return data.publicUrl ?? null
+}
+
+/** Khóa map `bucket::path` → URL (dùng với useFeedMediaPublicUrlMap). */
+export function mediaUrlMapKey(bucket: string, storagePath: string): string {
+  return `${bucket}::${storagePath.trim()}`
+}
+
+function publicFeedMediaUrl(storagePath: string): string | null {
+  return getStoragePublicUrl('family-feed-media', storagePath)
 }
 
 async function loadProfiles(ids: string[]): Promise<Map<string, FeedProfileLite>> {
@@ -71,7 +90,10 @@ async function loadProfiles(ids: string[]): Promise<Map<string, FeedProfileLite>
   const sb = getSupabase()
   if (!sb || ids.length === 0) return m
   const unique = [...new Set(ids)]
-  const { data, error } = await sb.from('profiles').select('id, full_name, avatar_url').in('id', unique)
+  const { data, error } = await sb
+    .from('profiles')
+    .select('id, full_name, avatar_url, avatar_thumb_path')
+    .in('id', unique)
   if (error || !data) return m
   for (const row of data as FeedProfileLite[]) {
     m.set(row.id, row)
@@ -388,4 +410,14 @@ export function feedPostsFingerprint(posts: FeedPostState[]): string {
 /** URL công khai cho file trong bucket tin dòng họ */
 export function getFeedMediaPublicUrl(storagePath: string): string | null {
   return publicFeedMediaUrl(storagePath)
+}
+
+/** Fallback đồng bộ khi chưa có trong map (vd. render đầu tiên). */
+export function resolveFeedMediaPublicUrl(
+  bucket: string | undefined | null,
+  storagePath: string | null | undefined,
+): string | null {
+  if (!storagePath?.trim()) return null
+  const b = bucket?.trim() || 'family-feed-media'
+  return getStoragePublicUrl(b, storagePath)
 }

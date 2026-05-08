@@ -8,6 +8,7 @@ import type { FeedReactionKind } from './reactionKinds'
 import { FeedReactionBar } from './FeedReactionBar'
 import { FeedCommentBlock } from './FeedCommentBlock'
 import { feedUserProfilePath } from './feedProfileHref'
+import { profileAvatarDisplayUrl } from '../../lib/profileAvatarUrl'
 import { formatFeedDt } from './feedDate'
 
 const MOBILE_THEATER_COMMENT_PAGE = 8
@@ -142,7 +143,10 @@ export function FeedPostPhotoViewerSidebar({
               className="shrink-0 rounded-full outline-none ring-offset-2 ring-offset-[#242526] transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-[#bcc0c7]/35"
               aria-label={`Hồ sơ ${profile?.full_name?.trim() || 'thành viên'}`}
             >
-              <ViewerAvatar url={profile?.avatar_url ?? null} label={initials} />
+              <ViewerAvatar
+                url={profile ? profileAvatarDisplayUrl(profile) : null}
+                label={initials}
+              />
             </Link>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold leading-snug">

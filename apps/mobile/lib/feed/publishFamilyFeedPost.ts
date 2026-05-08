@@ -1,7 +1,14 @@
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
 import * as FileSystem from 'expo-file-system/legacy'
+import * as VideoThumbnails from 'expo-video-thumbnails'
 
 import { getSupabase } from '@/lib/supabase'
+
+import {
+  assertFeedImageSizeBytes,
+  assertFeedVideoSizeBytes,
+} from '@/lib/media/mediaLimits'
+import { logMediaUploadMetric } from '@/lib/media/telemetry'
 
 import { guessMediaKindFromPickerAsset } from './guessFeedMedia'
 import { uploadFamilyFeedMediaNative } from '@/lib/feed/uploadFamilyFeedMediaNative'
@@ -169,6 +176,73 @@ export async function readLocalUriIntoBlob(readUri: string, contentType: string)
   }
 }
 
+async function tryUploadLocalToFeedBucket(params: {
+  sb: NonNullable<ReturnType<typeof getSupabase>>
+  readUri: string
+  storagePath: string
+  ct: string
+  mimeHintForRead: string
+  accessToken: string | null
+  supabaseUrl: string
+  anonKey: string
+  jpegFromConversion: boolean
+}): Promise<boolean> {
+  const localUri = params.readUri.trim()
+  const canNativeUpload =
+    Boolean(params.accessToken && params.supabaseUrl && params.anonKey && /^file:\/\//i.test(localUri))
+
+  if (canNativeUpload) {
+    dbg('storage upload TRY native', { storagePath: params.storagePath, readTail: uriTail(localUri) })
+    const nat = await uploadFamilyFeedMediaNative({
+      supabaseUrl: params.supabaseUrl,
+      anonKey: params.anonKey,
+      accessToken: params.accessToken!,
+      storagePath: params.storagePath,
+      fileUri: localUri,
+      contentType: params.ct,
+    })
+    if (nat.ok) {
+      dbg('storage upload OK (native)', { storagePath: params.storagePath })
+      return true
+    }
+    dbg('storage native FAIL → blob', { message: nat.message })
+  }
+
+  let blob: Blob | null = null
+  try {
+    blob = await readLocalUriIntoBlob(localUri, params.mimeHintForRead)
+  } catch {
+    blob = null
+  }
+  if (!blob || blob.size === 0) {
+    dbg('upload FAIL no blob', { storagePath: params.storagePath })
+    return false
+  }
+
+  const uploadCt =
+    params.jpegFromConversion ? 'image/jpeg' : blob.type?.trim() || params.ct
+
+  logMediaUploadMetric({
+    context: 'family-feed-media',
+    variant: params.storagePath,
+    bytes: blob.size,
+    mime: uploadCt,
+  })
+
+  const { error: ue } = await params.sb.storage.from('family-feed-media').upload(params.storagePath, blob, {
+    upsert: true,
+    contentType: uploadCt,
+    cacheControl: '31536000',
+  })
+
+  if (ue) {
+    dbg('storage upload FAIL blob', { message: ue.message, storagePath: params.storagePath })
+    return false
+  }
+  dbg('storage upload OK (blob)', { storagePath: params.storagePath })
+  return true
+}
+
 /** Ảnh / video cục bộ (Expo picker) đồng bộ luồng web: bucket `family-feed-media`. */
 export async function publishFamilyFeedPostMobile(params: {
   treeId: string
@@ -246,11 +320,40 @@ export async function publishFamilyFeedPostMobile(params: {
       continue
     }
 
+    try {
+      const finfo = await FileSystem.getInfoAsync(uri)
+      if (finfo.exists && !finfo.isDirectory && 'size' in finfo && typeof finfo.size === 'number') {
+        if (kind === 'video') {
+          const es = assertFeedVideoSizeBytes(finfo.size)
+          if (es) {
+            failNotes.push(es)
+            continue
+          }
+        } else {
+          const es = assertFeedImageSizeBytes(finfo.size)
+          if (es) {
+            failNotes.push(es)
+            continue
+          }
+        }
+      }
+    } catch {
+      /* bỏ qua giới hạn nếu không đọc được size */
+    }
+
     dbg('asset BEGIN', { uriTail: uriTail(uri), kind, order })
     const isVid = kind === 'video'
     const extOriginal = extFromPickerAsset(asset)
+    const isGif =
+      !isVid &&
+      (extOriginal.toLowerCase() === 'gif' ||
+        asset.mimeType?.toLowerCase() === 'image/gif' ||
+        (asset.fileName ?? '').toLowerCase().endsWith('.gif'))
+
     const prepared = !isVid
-      ? await normalizeStillImageForUpload(asset, extOriginal)
+      ? isGif
+        ? { readUri: uri, storageExt: 'gif' as const }
+        : await normalizeStillImageForUpload(asset, extOriginal)
       : { readUri: uri, storageExt: extOriginal }
     const readUri = prepared.readUri
     const pathExt = prepared.storageExt
@@ -273,11 +376,12 @@ export async function publishFamilyFeedPostMobile(params: {
                 ? 'image/png'
                 : pathExt === 'webp'
                   ? 'image/webp'
-                  : pathExt === 'jpg' || pathExt === 'jpeg'
-                    ? 'image/jpeg'
-                    : 'image/jpeg')) || 'application/octet-stream'
+                  : pathExt === 'gif'
+                    ? 'image/gif'
+                    : pathExt === 'jpg' || pathExt === 'jpeg'
+                      ? 'image/jpeg'
+                      : 'image/jpeg')) || 'application/octet-stream'
 
-    /** Content-Type upload — không phụ thuộc Blob (ưu tiên native upload không đọc hết file vào RAM). */
     const ct =
       jpegFromConversion
         ? 'image/jpeg'
@@ -292,102 +396,138 @@ export async function publishFamilyFeedPostMobile(params: {
               ? 'image/png'
               : pathExt === 'webp'
                 ? 'image/webp'
-                : pathExt === 'jpg' || pathExt === 'jpeg'
-                  ? 'image/jpeg'
-                  : 'image/jpeg')
+                : pathExt === 'gif'
+                  ? 'image/gif'
+                  : pathExt === 'jpg' || pathExt === 'jpeg'
+                    ? 'image/jpeg'
+                    : 'image/jpeg')
 
-    const storagePath = `${params.treeId}/${params.authorId}/${randomUuid()}.${pathExt}`
-
-    let storageOk = false
-    const localUri = readUri.trim()
-    const canNativeUpload =
-      Boolean(accessToken && supabaseUrl && anonKey && /^file:\/\//i.test(localUri))
-
-    if (canNativeUpload) {
-      dbg('storage upload TRY native (uploadAsync)', {
+    const commonUpload = (localUri: string, storagePath: string, contentType: string, mimeHint: string, jConv: boolean) =>
+      tryUploadLocalToFeedBucket({
+        sb,
+        readUri: localUri,
         storagePath,
-        contentType: ct,
-        readTail: uriTail(readUri),
-        media_kind: isVid ? 'video' : 'image',
-      })
-      const nat = await uploadFamilyFeedMediaNative({
+        ct: contentType,
+        mimeHintForRead: mimeHint,
+        accessToken,
         supabaseUrl,
         anonKey,
-        accessToken,
-        storagePath,
-        fileUri: localUri,
-        contentType: ct,
+        jpegFromConversion: jConv,
       })
-      if (nat.ok) {
-        dbg('storage upload OK (native)', { storagePath })
-        storageOk = true
-      } else {
-        dbg('storage native FAIL → blob path', { message: nat.message })
-      }
-    }
 
-    if (!storageOk) {
-      let blob: Blob | null = null
+    if (isVid) {
+      const videoPath = `${params.treeId}/${params.authorId}/${randomUuid()}.${pathExt}`
+      const vOk = await commonUpload(readUri, videoPath, ct, mimeHintForRead, false)
+      if (!vOk) {
+        failNotes.push('Không tải lên được video.')
+        continue
+      }
+
+      let posterPath: string | null = null
       try {
-        blob = await readLocalUriIntoBlob(readUri, mimeHintForRead)
+        const { uri: thUri } = await VideoThumbnails.getThumbnailAsync(readUri, {
+          time: 150,
+          quality: 0.72,
+        })
+        posterPath = `${params.treeId}/${params.authorId}/${randomUuid()}_poster.jpg`
+        const pOk = await commonUpload(thUri, posterPath, 'image/jpeg', 'image/jpeg', true)
+        if (!pOk) posterPath = null
       } catch {
-        blob = null
-      }
-      if (!blob) {
-        dbg('asset FAIL no blob', { uriTail: uriTail(readUri), mimeHintForRead })
-        failNotes.push(isVid ? 'Không đọc được file video.' : 'Không đọc được file ảnh.')
-        continue
+        posterPath = null
       }
 
-      if (blob.size === 0) {
-        dbg('asset FAIL blob size 0', { uriTail: uriTail(readUri) })
-        failNotes.push(isVid ? 'File video rỗng.' : 'File ảnh rỗng.')
-        continue
-      }
-
-      const uploadCt =
-        jpegFromConversion
-          ? 'image/jpeg'
-          : blob.type?.trim() || ct
-
-      dbg('storage upload (supabase blob)', {
-        storagePath,
-        contentType: uploadCt,
-        bytes: blob.size,
-        media_kind: isVid ? 'video' : 'image',
+      const { error: me } = await sb.from('family_feed_post_media').insert({
+        post_id: postId,
+        storage_path: videoPath,
+        storage_bucket: 'family-feed-media',
+        thumb_path: posterPath,
+        medium_path: posterPath,
+        poster_path: posterPath,
+        media_kind: 'video',
+        sort_order: order,
       })
 
-      const { error: ue } = await sb.storage.from('family-feed-media').upload(storagePath, blob, {
-        upsert: true,
-        contentType: uploadCt,
-      })
-
-      if (ue) {
-        dbg('storage upload FAIL', { message: ue.message, storagePath })
-        failNotes.push(ue.message)
+      if (me) {
+        dbg('family_feed_post_media insert FAIL', { message: me.message, postId })
+        failNotes.push(me.message)
         continue
       }
-
-      dbg('storage upload OK (blob)', { storagePath })
-      storageOk = true
+      dbg('asset DONE video', { videoPath, posterPath })
+      uploaded++
+      order++
+      continue
     }
 
-    if (!storageOk) continue
+    if (pathExt === 'gif') {
+      const gifPath = `${params.treeId}/${params.authorId}/${randomUuid()}.gif`
+      const gOk = await commonUpload(readUri, gifPath, 'image/gif', 'image/gif', false)
+      if (!gOk) {
+        failNotes.push('Không tải lên được ảnh GIF.')
+        continue
+      }
+      const { error: me } = await sb.from('family_feed_post_media').insert({
+        post_id: postId,
+        storage_path: gifPath,
+        storage_bucket: 'family-feed-media',
+        thumb_path: gifPath,
+        medium_path: gifPath,
+        media_kind: 'image',
+        sort_order: order,
+      })
+      if (me) {
+        failNotes.push(me.message)
+        continue
+      }
+      uploaded++
+      order++
+      continue
+    }
+
+    let thumbUri: string
+    let medUri: string
+    let fullUri: string
+    try {
+      thumbUri = (await manipulateAsync(readUri, [{ resize: { width: 320 } }], { compress: 0.82, format: SaveFormat.JPEG }))
+        .uri
+      medUri = (await manipulateAsync(readUri, [{ resize: { width: 1080 } }], { compress: 0.82, format: SaveFormat.JPEG }))
+        .uri
+      fullUri = (await manipulateAsync(readUri, [{ resize: { width: 1920 } }], { compress: 0.85, format: SaveFormat.JPEG }))
+        .uri
+    } catch (e) {
+      dbg('manipulate variants FAIL', { message: e instanceof Error ? e.message : String(e) })
+      failNotes.push('Không xử lý được ảnh.')
+      continue
+    }
+
+    const idBase = randomUuid()
+    const tp = `${params.treeId}/${params.authorId}/${idBase}_t.jpg`
+    const mp = `${params.treeId}/${params.authorId}/${idBase}_m.jpg`
+    const op = `${params.treeId}/${params.authorId}/${idBase}.jpg`
+
+    const okT = await commonUpload(thumbUri, tp, 'image/jpeg', 'image/jpeg', true)
+    const okM = await commonUpload(medUri, mp, 'image/jpeg', 'image/jpeg', true)
+    const okO = await commonUpload(fullUri, op, 'image/jpeg', 'image/jpeg', true)
+    if (!okT || !okM || !okO) {
+      failNotes.push('Không tải lên được ảnh (biến thể).')
+      continue
+    }
 
     const { error: me } = await sb.from('family_feed_post_media').insert({
       post_id: postId,
-      storage_path: storagePath,
-      media_kind: isVid ? 'video' : 'image',
+      storage_path: op,
+      storage_bucket: 'family-feed-media',
+      thumb_path: tp,
+      medium_path: mp,
+      media_kind: 'image',
       sort_order: order,
     })
 
     if (me) {
-      dbg('family_feed_post_media insert FAIL', { message: me.message, postId, storagePath })
       failNotes.push(me.message)
       continue
     }
 
-    dbg('asset DONE', { storagePath, sort_order: order })
+    dbg('asset DONE image variants', { op })
     uploaded++
     order++
   }

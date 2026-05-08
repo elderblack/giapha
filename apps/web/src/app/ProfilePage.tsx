@@ -7,6 +7,8 @@ import { getSupabase } from '../lib/supabase'
 import { ProfileMyPosts } from './ProfileMyPosts'
 import { CoverCropModal } from './profile/CoverCropModal'
 import { ProfileAboutView } from './profile/ProfileAboutView'
+import { assertProfileImageSize } from '../lib/media/mediaLimits'
+import { createProfileAvatarVariants, createProfileCoverVariants } from '../lib/media/createImageVariants'
 import { publishProfileMediaToFamilyFeed } from './profile/publishProfileMediaToFamilyFeed'
 import { ProfilePhotosTab } from './profile/ProfilePhotosTab'
 
@@ -16,6 +18,8 @@ type ProfileRow = {
   username: string | null
   avatar_url: string | null
   cover_url: string | null
+  avatar_thumb_path?: string | null
+  cover_thumb_path?: string | null
   bio: string | null
   hometown: string | null
   current_city: string | null
@@ -129,34 +133,92 @@ export function ProfilePage() {
     if (!file || !user?.id || !sb || !isSelf) return
     setUploadBusy(true)
     setSaveMsg(null)
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const safe = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg'
-    const path = `${user.id}/avatar-${crypto.randomUUID()}.${safe}`
-    const { error: upErr } = await sb.storage.from('profile-media').upload(path, file, {
-      upsert: true,
-      contentType: file.type || 'image/jpeg',
-    })
-    if (upErr) {
-      setSaveMsg(upErr.message)
+    const cap = assertProfileImageSize(file)
+    if (cap) {
+      setSaveMsg(cap)
       setUploadBusy(false)
       return
     }
-    const {
-      data: { publicUrl },
-    } = sb.storage.from('profile-media').getPublicUrl(path)
-    const { error: dbErr } = await sb.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id)
-    setUploadBusy(false)
-    if (dbErr) {
-      setSaveMsg(dbErr.message)
-      return
+    const base = `avatar-${crypto.randomUUID()}`
+    try {
+      const variants = await createProfileAvatarVariants(file)
+      if (variants.kind === 'passthrough') {
+        const path = `${user.id}/${base}.${variants.ext}`
+        const { error: upErr } = await sb.storage.from('profile-media').upload(path, variants.blob, {
+          upsert: true,
+          contentType: variants.mime || 'image/jpeg',
+          cacheControl: '31536000',
+        })
+        if (upErr) {
+          setSaveMsg(upErr.message)
+          return
+        }
+        const pub = sb.storage.from('profile-media').getPublicUrl(path).data.publicUrl
+        const { error: dbErr } = await sb
+          .from('profiles')
+          .update({ avatar_url: pub, avatar_thumb_path: path })
+          .eq('id', user.id)
+        if (dbErr) {
+          setSaveMsg(dbErr.message)
+          return
+        }
+        setProfile((p) => (p ? { ...p, avatar_url: pub ?? null, avatar_thumb_path: path } : p))
+        setSaveMsg('Đã cập nhật ảnh đại diện.')
+        void publishProfileMediaToFamilyFeed({
+          userId: user.id,
+          bodyDraft: 'Đã cập nhật ảnh đại diện.',
+          storageBucket: 'profile-media',
+          storagePath: path,
+          thumbPath: path,
+          mediumPath: path,
+          mediaKind: 'image',
+        })
+        return
+      }
+      const tp = `${user.id}/${base}_t.${variants.ext}`
+      const mp = `${user.id}/${base}.${variants.ext}`
+      const mime = variants.mime
+      const upT = await sb.storage.from('profile-media').upload(tp, variants.thumb, {
+        upsert: true,
+        contentType: mime,
+        cacheControl: '31536000',
+      })
+      if (upT.error) {
+        setSaveMsg(upT.error.message)
+        return
+      }
+      const upM = await sb.storage.from('profile-media').upload(mp, variants.medium, {
+        upsert: true,
+        contentType: mime,
+        cacheControl: '31536000',
+      })
+      if (upM.error) {
+        setSaveMsg(upM.error.message)
+        return
+      }
+      const pubMed = sb.storage.from('profile-media').getPublicUrl(mp).data.publicUrl
+      const { error: dbErr } = await sb
+        .from('profiles')
+        .update({ avatar_url: pubMed, avatar_thumb_path: tp })
+        .eq('id', user.id)
+      if (dbErr) {
+        setSaveMsg(dbErr.message)
+        return
+      }
+      setProfile((p) => (p ? { ...p, avatar_url: pubMed ?? null, avatar_thumb_path: tp } : p))
+      setSaveMsg('Đã cập nhật ảnh đại diện.')
+      void publishProfileMediaToFamilyFeed({
+        userId: user.id,
+        bodyDraft: 'Đã cập nhật ảnh đại diện.',
+        storageBucket: 'profile-media',
+        storagePath: mp,
+        thumbPath: tp,
+        mediumPath: mp,
+        mediaKind: 'image',
+      })
+    } finally {
+      setUploadBusy(false)
     }
-    setProfile((p) => (p ? { ...p, avatar_url: publicUrl } : p))
-    setSaveMsg('Đã cập nhật ảnh đại diện.')
-    void publishProfileMediaToFamilyFeed({
-      userId: user.id,
-      bodyDraft: 'Đã cập nhật ảnh đại diện.',
-      file,
-    })
   }
 
   async function uploadCoverFromCrop(blob: Blob) {
@@ -165,32 +227,89 @@ export function ProfilePage() {
     setCoverBusy(true)
     setSaveMsg(null)
     try {
-      const path = `${user.id}/cover-${crypto.randomUUID()}.jpg`
-      const { error: upErr } = await sb.storage.from('profile-media').upload(path, blob, {
-        upsert: true,
-        contentType: 'image/jpeg',
-      })
-      if (upErr) {
-        setSaveMsg(upErr.message)
+      const cap = assertProfileImageSize(new File([blob], 'cover.jpg', { type: 'image/jpeg' }))
+      if (cap) {
+        setSaveMsg(cap)
         return
       }
-      const {
-        data: { publicUrl },
-      } = sb.storage.from('profile-media').getPublicUrl(path)
+      const coverFile = new File([blob], 'cover.jpg', { type: 'image/jpeg' })
+      const base = `cover-${crypto.randomUUID()}`
+      const variants = await createProfileCoverVariants(coverFile)
+      if (variants.kind === 'passthrough') {
+        const path = `${user.id}/${base}.${variants.ext}`
+        const { error: upErr } = await sb.storage.from('profile-media').upload(path, variants.blob, {
+          upsert: true,
+          contentType: variants.mime || 'image/jpeg',
+          cacheControl: '31536000',
+        })
+        if (upErr) {
+          setSaveMsg(upErr.message)
+          return
+        }
+        const pub = sb.storage.from('profile-media').getPublicUrl(path).data.publicUrl
+        const { error: dbErr } = await sb
+          .from('profiles')
+          .update({ cover_url: pub, cover_thumb_path: path, cover_offset_x: 50, cover_offset_y: 50 })
+          .eq('id', user.id)
+        if (dbErr) {
+          setSaveMsg(dbErr.message)
+          return
+        }
+        setProfile((p) => (p ? { ...p, cover_url: pub ?? null, cover_thumb_path: path } : p))
+        setSaveMsg('Đã cập nhật ảnh bìa.')
+        void publishProfileMediaToFamilyFeed({
+          userId: user.id,
+          bodyDraft: 'Đã cập nhật ảnh bìa.',
+          storageBucket: 'profile-media',
+          storagePath: path,
+          thumbPath: path,
+          mediumPath: path,
+          mediaKind: 'image',
+        })
+        if (revokeUrl) URL.revokeObjectURL(revokeUrl)
+        setCoverCropSrc(null)
+        return
+      }
+      const tp = `${user.id}/${base}_t.${variants.ext}`
+      const mp = `${user.id}/${base}.${variants.ext}`
+      const mime = variants.mime
+      const upT = await sb.storage.from('profile-media').upload(tp, variants.thumb, {
+        upsert: true,
+        contentType: mime,
+        cacheControl: '31536000',
+      })
+      if (upT.error) {
+        setSaveMsg(upT.error.message)
+        return
+      }
+      const upM = await sb.storage.from('profile-media').upload(mp, variants.medium, {
+        upsert: true,
+        contentType: mime,
+        cacheControl: '31536000',
+      })
+      if (upM.error) {
+        setSaveMsg(upM.error.message)
+        return
+      }
+      const pubMed = sb.storage.from('profile-media').getPublicUrl(mp).data.publicUrl
       const { error: dbErr } = await sb
         .from('profiles')
-        .update({ cover_url: publicUrl, cover_offset_x: 50, cover_offset_y: 50 })
+        .update({ cover_url: pubMed, cover_thumb_path: tp, cover_offset_x: 50, cover_offset_y: 50 })
         .eq('id', user.id)
       if (dbErr) {
         setSaveMsg(dbErr.message)
         return
       }
-      setProfile((p) => (p ? { ...p, cover_url: publicUrl } : p))
+      setProfile((p) => (p ? { ...p, cover_url: pubMed ?? null, cover_thumb_path: tp } : p))
       setSaveMsg('Đã cập nhật ảnh bìa.')
       void publishProfileMediaToFamilyFeed({
         userId: user.id,
         bodyDraft: 'Đã cập nhật ảnh bìa.',
-        file: new File([blob], 'cover.jpg', { type: 'image/jpeg' }),
+        storageBucket: 'profile-media',
+        storagePath: mp,
+        thumbPath: tp,
+        mediumPath: mp,
+        mediaKind: 'image',
       })
       if (revokeUrl) URL.revokeObjectURL(revokeUrl)
       setCoverCropSrc(null)

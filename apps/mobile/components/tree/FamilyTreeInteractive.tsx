@@ -1,7 +1,8 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome'
 import { LinearGradient } from 'expo-linear-gradient'
 import React, { useCallback, useEffect, useMemo } from 'react'
-import { Image, Platform, StyleSheet, View, Pressable as RNPressable, type LayoutRectangle } from 'react-native'
+import { Image } from 'expo-image'
+import { Platform, StyleSheet, View, Pressable as RNPressable, type LayoutRectangle } from 'react-native'
 import Svg, { G, Line, Path } from 'react-native-svg'
 import { Gesture, GestureDetector, GestureHandlerRootView, Pressable } from 'react-native-gesture-handler'
 import Animated, { clamp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -137,7 +138,13 @@ const NodeCard = React.memo(function NodeCard({
         }}
       >
         {node.avatar_url ? (
-          <Image source={{ uri: node.avatar_url }} style={{ width: avSize, height: avSize, borderRadius: avSize / 2 }} />
+          <Image
+            source={{ uri: node.avatar_url }}
+            style={{ width: avSize, height: avSize, borderRadius: avSize / 2 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={node.avatar_url}
+          />
         ) : (
           <View
             style={{

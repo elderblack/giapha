@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { role } from '../../design/roles'
-import { getFamilyFeedMediaDisplayUrl } from '../feed/feedMediaDisplayUrl'
-import { loadMyPostsPage, type FeedPostState } from '../feed/feedQueries'
+import { getStoragePublicUrl, loadMyPostsPage, type FeedPostState } from '../feed/feedQueries'
 
 const PAGE_SIZE = 15
 
@@ -15,31 +14,29 @@ type GridItem = {
   createdAt: string
 }
 
-async function postsToImageItems(posts: FeedPostState[]): Promise<GridItem[]> {
-  type Raw = Omit<GridItem, 'url'>
-  const raw: Raw[] = []
+function postsToImageItems(posts: FeedPostState[]): GridItem[] {
+  const out: GridItem[] = []
   for (const p of posts) {
     const label = p.tree_name?.trim() || 'Bảng tin dòng họ'
     const images = p.media.filter((m) => m.media_kind === 'image')
     for (const m of images) {
       const storagePath = m.storage_path.trim()
       if (!storagePath) continue
-      raw.push({
+      const bucket = m.storage_bucket?.trim() || 'family-feed-media'
+      const path = m.thumb_path?.trim() || storagePath
+      const url = getStoragePublicUrl(bucket, path)
+      if (!url) continue
+      out.push({
         key: `${p.id}-${m.id}`,
         postId: p.id,
         storagePath,
+        url,
         treeLabel: label,
         createdAt: p.created_at,
       })
     }
   }
-  const rows = await Promise.all(
-    raw.map(async (r) => {
-      const url = await getFamilyFeedMediaDisplayUrl(r.storagePath)
-      return url ? { ...r, url } : null
-    }),
-  )
-  return rows.filter(Boolean) as GridItem[]
+  return out
 }
 
 function groupByTree(items: GridItem[]): Map<string, GridItem[]> {
@@ -76,7 +73,7 @@ export function ProfilePhotosTab({ userId }: { userId: string }) {
       }
       try {
         const batch = await loadMyPostsPage(userId, offset, PAGE_SIZE)
-        const chunk = await postsToImageItems(batch)
+        const chunk = postsToImageItems(batch)
         if (reset) {
           setItems(chunk)
           nextOffsetRef.current = batch.length

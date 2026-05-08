@@ -9,7 +9,7 @@ import { FloatingFeedReactionPicker, type ReactionAnchorRect } from '@/component
 import { FeedMediaLightbox } from '@/components/feed/FeedMediaLightbox'
 import { Text } from '@/components/Themed'
 import type { FeedPostState } from '@/lib/feed/feedQueries'
-import { getFeedMediaPublicUrl } from '@/lib/feed/feedQueries'
+import { mediaUrlMapKey, resolveFeedMediaPublicUrl } from '@/lib/feed/feedQueries'
 import {
   FEED_REACTION_EMOJI,
   FEED_REACTION_VI,
@@ -21,6 +21,7 @@ import { useFeedImageLayoutMobile } from '@/hooks/useFeedImageLayoutMobile'
 import { useFeedMediaDisplayUrlMap } from '@/hooks/useFeedMediaDisplayUrlMap'
 import { usePalette } from '@/hooks/usePalette'
 import { Font } from '@/theme/typography'
+import { profileAvatarDisplayUrl } from '@/lib/profileAvatarUrl'
 
 function reactionRibbon(post: FeedPostState): { emojis: string; count: number } {
   const count = post.reactions.length
@@ -100,16 +101,39 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
   const { width: winW, height: winH } = useWindowDimensions()
   const imageMaxW = imageMaxWOverride ?? Math.min(winW - 48, 560)
 
-  type MediaPreview = (typeof post.media)[0] & { url: string }
+  type MediaPreview = (typeof post.media)[0] & { url: string; videoUri?: string }
 
   const sortedPreviews = useMemo((): MediaPreview[] => {
-    return [...post.media]
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const sorted = [...post.media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const imageOnlyCount = sorted.filter((x) => x.media_kind === 'image').length
+
+    return sorted
       .map((m) => {
-        const url =
-          feedMediaUrls[m.storage_path.trim()] ??
-          getFeedMediaPublicUrl(m.storage_path.trim()) ??
-          null
+        const bucket = (m.storage_bucket ?? 'family-feed-media').trim()
+        if (m.media_kind === 'video') {
+          const fullPath = m.storage_path.trim()
+          const videoUri =
+            feedMediaUrls[mediaUrlMapKey(bucket, fullPath)] ??
+            resolveFeedMediaPublicUrl(bucket, fullPath) ??
+            null
+          const posterPath = m.poster_path?.trim()
+          const posterUri = posterPath
+            ? feedMediaUrls[mediaUrlMapKey(bucket, posterPath)] ??
+              resolveFeedMediaPublicUrl(bucket, posterPath) ??
+              null
+            : null
+          const url = posterUri ?? videoUri
+          return url && videoUri ? ({ ...m, url, videoUri } as MediaPreview) : null
+        }
+
+        const preferMedium = imageOnlyCount === 1
+        const displayPath = preferMedium
+          ? (m.medium_path?.trim() ?? m.thumb_path?.trim() ?? m.storage_path.trim())
+          : (m.thumb_path?.trim() ?? m.medium_path?.trim() ?? m.storage_path.trim())
+
+        const key = mediaUrlMapKey(bucket, displayPath)
+        const url = feedMediaUrls[key] ?? resolveFeedMediaPublicUrl(bucket, displayPath)
+
         return url ? ({ ...m, url } as MediaPreview) : null
       })
       .filter(Boolean) as MediaPreview[]
@@ -129,7 +153,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
   const lightboxSlides = useMemo(
     () =>
       sortedPreviews.map((m) => ({
-        uri: m.url,
+        uri: m.media_kind === 'video' ? (m.videoUri ?? m.url) : m.url,
         kind: (m.media_kind === 'video' ? 'video' : 'image') as 'video' | 'image',
       })),
     [sortedPreviews],
@@ -205,13 +229,21 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
           accessibilityLabel={onAuthorPress ? 'Hồ sơ tác giả' : undefined}
         >
           <View style={[styles.avatar, { borderColor: p.border }]}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} contentFit="cover" />
-            ) : (
-              <LinearGradient colors={[p.accent, '#C026D3']} style={styles.avatarImg} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }}>
-                <Text style={[styles.initialsTxt, { fontFamily: Font.bold }]}>{initials}</Text>
-              </LinearGradient>
-            )}
+            {(() => {
+              const av = profile ? profileAvatarDisplayUrl(profile) : null
+              return av ? (
+                <Image
+                  source={{ uri: av }}
+                  style={styles.avatarImg}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <LinearGradient colors={[p.accent, '#C026D3']} style={styles.avatarImg} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }}>
+                  <Text style={[styles.initialsTxt, { fontFamily: Font.bold }]}>{initials}</Text>
+                </LinearGradient>
+              )
+            })()}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: Font.bold, fontSize: 15, color: p.ink }} numberOfLines={1}>
@@ -252,7 +284,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
               >
                 <View style={{ width: imageMaxW, height: feedPosterVideoTileH, backgroundColor: '#000' }}>
                   <FeedMutedCoverLoopVideo
-                    uri={sortedPreviews[0].url}
+                    uri={sortedPreviews[0].videoUri ?? sortedPreviews[0].url}
                     playing={feedPosterViewportAutoplay}
                     style={styles.mosaicCover}
                   />
@@ -277,7 +309,10 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
               </Pressable>
             ) : (
               <View style={[styles.videoShell, { width: imageMaxW, borderColor: p.border }]}>
-                <FeedInlineDetailVideo uri={sortedPreviews[0].url} style={styles.videoPlayer} />
+                <FeedInlineDetailVideo
+                  uri={sortedPreviews[0].videoUri ?? sortedPreviews[0].url}
+                  style={styles.videoPlayer}
+                />
               </View>
             )
           ) : onlyImages && sortedPreviews.length === 1 ? (
@@ -391,7 +426,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                       style={[styles.videoShell, { width: imageMaxW, height: feedPosterVideoTileH, borderColor: p.border }]}
                     >
                       <FeedMutedCoverLoopVideo
-                        uri={m.url}
+                        uri={m.videoUri ?? m.url}
                         playing={
                           Boolean(
                             feedPosterViewportAutoplay && mediaIdx === primaryVideoSortedIndex,
@@ -419,7 +454,7 @@ export const FeedPostBodyMobile = memo(function FeedPostBodyMobileInner({
                     </Pressable>
                   ) : (
                     <View key={m.id} style={[styles.videoShell, { width: imageMaxW, borderColor: p.border }]}>
-                      <FeedInlineDetailVideo uri={m.url} style={styles.videoPlayer} />
+                      <FeedInlineDetailVideo uri={m.videoUri ?? m.url} style={styles.videoPlayer} />
                     </View>
                   )
                 ) : (

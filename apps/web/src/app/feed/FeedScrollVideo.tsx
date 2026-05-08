@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Video bảng tin: tự phát khi cuộn vào viewport (ảnh trong khung đủ lớn), mặc định không tiếng
@@ -6,16 +6,19 @@ import { useEffect, useRef } from 'react'
  */
 export function FeedScrollVideo({
   src,
+  posterUrl,
   className,
   onError,
   controls = true,
 }: {
   src: string
+  posterUrl?: string
   className?: string
   onError?: () => void
   controls?: boolean
 }) {
   const ref = useRef<HTMLVideoElement>(null)
+  const [preloadMode, setPreloadMode] = useState<'none' | 'metadata'>('none')
 
   useEffect(() => {
     const el = ref.current
@@ -46,8 +49,12 @@ export function FeedScrollVideo({
       (entries) => {
         const hit = entries[0]
         if (!hit) return
-        if (hit.isIntersecting && hit.intersectionRatio >= 0.45) tryPlay()
-        else tryPause()
+        if (hit.isIntersecting && hit.intersectionRatio >= 0.45) {
+          setPreloadMode('metadata')
+          tryPlay()
+        } else {
+          tryPause()
+        }
       },
       {
         threshold: [0, 0.35, 0.55, 0.75],
@@ -65,10 +72,11 @@ export function FeedScrollVideo({
     <video
       ref={ref}
       src={src}
+      poster={posterUrl}
       muted
       playsInline
       controls={controls}
-      preload="metadata"
+      preload={preloadMode}
       className={className}
       onError={onError}
     />

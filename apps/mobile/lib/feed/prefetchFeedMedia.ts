@@ -1,4 +1,4 @@
-import { Image } from 'react-native'
+import { Image } from 'expo-image'
 
 import type { FeedPostState } from '@/lib/feed/feedQueries'
 import { getFamilyFeedMediaDisplayUrl } from '@/lib/feed/feedMediaDisplayUrl'
@@ -53,9 +53,12 @@ export function prefetchFeedTreeMedia(posts: FeedPostState[] | null | undefined)
   outer: for (const post of posts) {
     const sorted = [...post.media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     for (const m of sorted) {
-      const path = m.storage_path?.trim()
-      if (!path || seen.has(path)) continue
       const kind: Kind = m.media_kind === 'video' ? 'video' : 'image'
+      const path =
+        kind === 'image'
+          ? (m.thumb_path?.trim() ?? m.storage_path?.trim())
+          : (m.storage_path?.trim() ?? '')
+      if (!path || seen.has(path)) continue
       if (kind === 'image') {
         if (imgCount >= CAP_IMAGES) continue
         imgCount++

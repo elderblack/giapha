@@ -2,7 +2,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome'
 import { FeedReelPlayer } from '@/components/feed/expoFeedVideo'
 import { LinearGradient } from 'expo-linear-gradient'
 import { memo, useCallback, useMemo, useState } from 'react'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Image } from 'expo-image'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
@@ -16,6 +17,7 @@ import {
   type FeedReactionKind,
 } from '@/lib/feed/reactionKinds'
 import { usePalette } from '@/hooks/usePalette'
+import { profileAvatarDisplayUrl } from '@/lib/profileAvatarUrl'
 import { getSupabase } from '@/lib/supabase'
 import { Font } from '@/theme/typography'
 
@@ -62,6 +64,8 @@ export const FeedReelItem = memo(function FeedReelItemInner({
       .map((x) => x[0])
       .join('')
       .toUpperCase() ?? '?'
+
+  const authorAvatarUrl = profile ? profileAvatarDisplayUrl(profile) : null
 
   const toggleReact = useCallback(
     async (kind: FeedReactionKind) => {
@@ -126,8 +130,14 @@ export const FeedReelItem = memo(function FeedReelItemInner({
 
       <View style={styles.captionBlock}>
         <View style={styles.authorRow}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          {authorAvatarUrl ? (
+            <Image
+              source={{ uri: authorAvatarUrl }}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={authorAvatarUrl}
+            />
           ) : (
             <LinearGradient colors={[p.accent, '#C026D3']} style={styles.avatar} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }}>
               <Text style={styles.avatarTxt}>{initials}</Text>

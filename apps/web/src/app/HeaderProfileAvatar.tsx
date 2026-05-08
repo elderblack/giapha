@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { profileAvatarDisplayUrl } from '../lib/profileAvatarUrl'
 import { getSupabase } from '../lib/supabase'
 
 /** Avatar ở header: bấm vào vào trang hồ sơ của mình (thay nút cài đặt). */
@@ -18,13 +19,17 @@ export function HeaderProfileAvatar() {
     let cancel = false
     void sb
       .from('profiles')
-      .select('avatar_url,full_name')
+      .select('avatar_url,avatar_thumb_path,full_name')
       .eq('id', uid)
       .maybeSingle()
       .then(({ data }) => {
         if (!cancel && data) {
-          const row = data as { avatar_url: string | null; full_name: string | null }
-          setAvatarUrl(row.avatar_url ?? null)
+          const row = data as {
+            avatar_url: string | null
+            avatar_thumb_path?: string | null
+            full_name: string | null
+          }
+          setAvatarUrl(profileAvatarDisplayUrl(row))
           const ch = row.full_name?.trim()?.[0]
           setInitial(ch ? ch.toUpperCase() : '?')
         }

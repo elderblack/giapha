@@ -12,19 +12,20 @@ function formatMsgTime(iso: string): string {
   }
 }
 
-function AttachmentImage({ path }: { path: string }) {
+function AttachmentImage({ path, thumbPath }: { path: string; thumbPath?: string | null }) {
   const [src, setSrc] = useState<string | null>(null)
+  const keyPath = thumbPath?.trim() || path
 
   useEffect(() => {
     let cancel = false
     void (async () => {
-      const u = await getFamilyChatMediaDisplayUrl(path)
+      const u = await getFamilyChatMediaDisplayUrl(keyPath)
       if (!cancel) setSrc(u)
     })()
     return () => {
       cancel = true
     }
-  }, [path])
+  }, [keyPath])
 
   if (!src) {
     return (
@@ -87,7 +88,9 @@ export function MessageList(props: {
                 }`}
               >
                 {msg.body && <p className="m-0 whitespace-pre-wrap break-words">{msg.body}</p>}
-                {msg.attachment_path && <AttachmentImage path={msg.attachment_path} />}
+                {msg.attachment_path && (
+                  <AttachmentImage path={msg.attachment_path} thumbPath={msg.attachment_thumb_path} />
+                )}
                 <span
                   className={`mt-0.5 block text-right text-[10px] ${
                     isMine ? 'text-white/70' : 'text-abnb-muted'

@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { getSupabase } from '../../lib/supabase'
 import { computeMemberGenerations } from '../../lib/familyTreeGenerations'
+import { profileAvatarDisplayUrl } from '../../lib/profileAvatarUrl'
 import { claimRpcErrorVi, type MemberRow, type TreeRow } from './treeTypes'
 import { TreeWorkspaceContext, type TreeWorkspaceValue } from './treeWorkspaceContext'
 
@@ -114,10 +115,19 @@ export function TreeWorkspaceProvider({
         ]
         let avatarByProfile = new Map<string, string | null>()
         if (profileIds.length > 0) {
-          const { data: profs, error: pe } = await sb.from('profiles').select('id, avatar_url').in('id', profileIds)
+          const { data: profs, error: pe } = await sb
+            .from('profiles')
+            .select('id, avatar_url, avatar_thumb_path')
+            .in('id', profileIds)
           if (!pe && profs) {
             avatarByProfile = new Map(
-              (profs as { id: string; avatar_url: string | null }[]).map((p) => [p.id, p.avatar_url]),
+              (
+                profs as {
+                  id: string
+                  avatar_url: string | null
+                  avatar_thumb_path?: string | null
+                }[]
+              ).map((p) => [p.id, profileAvatarDisplayUrl(p)]),
             )
           }
         }

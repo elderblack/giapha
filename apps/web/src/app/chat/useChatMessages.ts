@@ -72,12 +72,13 @@ export function useChatMessages(conversationId: string | undefined) {
     })
   }
 
-  async function sendImage(storagePath: string) {
+  async function sendImage(payload: { storagePath: string; thumbPath: string }) {
     if (!sb || !uid || !conversationId) return
     await sb.from('family_chat_messages').insert({
       conversation_id: conversationId,
       sender_id: uid,
-      attachment_path: storagePath,
+      attachment_path: payload.storagePath,
+      attachment_thumb_path: payload.thumbPath,
       attachment_kind: 'image',
     })
   }

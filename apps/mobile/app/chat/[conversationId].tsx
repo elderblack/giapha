@@ -299,6 +299,7 @@ export default function ChatConversationScreen() {
       conversation_id: conversationId,
       sender_id: uid,
       attachment_path: up.storagePath,
+      attachment_thumb_path: up.thumbPath,
       attachment_kind: 'image',
     })
     setSending(false)
@@ -458,7 +459,9 @@ function MessageBubble(props: {
   const { msg, isMine, senderName, senderAvatarUrl, p } = props
   const bg = isMine ? p.accent : p.canvasMuted
   const imgUri = useChatAttachmentUrl(
-    msg.attachment_kind === 'image' ? msg.attachment_path : null,
+    msg.attachment_kind === 'image'
+      ? (msg.attachment_thumb_path?.trim() || msg.attachment_path)
+      : null,
   )
 
   const avatar = (

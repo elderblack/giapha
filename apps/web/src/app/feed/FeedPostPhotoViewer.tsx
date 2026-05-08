@@ -368,21 +368,26 @@ function ViewerStage({ item, fullBleed }: { item: FeedAttachmentItem; fullBleed:
     return () => {
       v.pause()
     }
-  }, [item.kind, item.key, item.url])
+  }, [item.kind, item.key, item.fullUrl, item.url])
 
   const fit = fullBleed
     ? 'max-h-[min(calc(100dvh-5.25rem),920px)] max-w-[100vw] object-contain'
     : 'max-h-[min(38dvh,360px)] max-w-[100vw] object-contain sm:max-h-[min(46dvh,480px)] lg:max-h-[min(92dvh,_900px)] lg:max-w-[100vw]'
 
-  if (!item.url) return <BrokenBadge />
+  const videoSrc = item.fullUrl ?? item.url
+  const imgSrc = item.mediumUrl ?? item.fullUrl ?? item.url
+
+  if (!videoSrc && item.kind === 'video') return <BrokenBadge />
+  if (!imgSrc && item.kind === 'image') return <BrokenBadge />
 
   if (item.kind === 'video') {
     if (videoBroken) return <BrokenBadge label="Không phát được" />
     return (
       <video
         ref={videoRef}
-        key={item.url}
-        src={item.url}
+        key={videoSrc}
+        src={videoSrc}
+        poster={item.posterUrl ?? undefined}
         controls
         muted
         playsInline
@@ -397,8 +402,8 @@ function ViewerStage({ item, fullBleed }: { item: FeedAttachmentItem; fullBleed:
 
   return (
     <img
-      key={item.url}
-      src={item.url}
+      key={imgSrc}
+      src={imgSrc}
       alt=""
       draggable={false}
       decoding="async"

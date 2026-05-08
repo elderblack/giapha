@@ -22,6 +22,7 @@ export type ChatMessage = {
   sender_id: string
   body: string | null
   attachment_path: string | null
+  attachment_thumb_path?: string | null
   attachment_kind: 'image' | null
   created_at: string
 }

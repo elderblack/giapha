@@ -1,4 +1,8 @@
 import { getSupabase } from '../../lib/supabase'
+import { createImageVariants } from '../../lib/media/createImageVariants'
+import { createVideoPosterBlob } from '../../lib/media/createVideoPoster'
+import { assertFeedImageSize, assertFeedVideoSize } from '../../lib/media/mediaLimits'
+import { logMediaUploadMetric } from '../../lib/media/telemetry'
 import { guessFeedMediaKind } from './guessFeedMedia'
 import { uploadFamilyFeedMediaXHR } from './uploadFamilyFeedMediaXHR'
 
@@ -93,6 +97,50 @@ function guessContentTypeForUpload(file: File, ext: string, isVid: boolean): str
   return 'image/jpeg'
 }
 
+async function uploadFamilyFeedObject(params: {
+  sb: ReturnType<typeof getSupabase>
+  storagePath: string
+  body: Blob
+  fileLabel: string
+  contentType: string
+  accessToken: string | undefined
+  httpCfg: ReturnType<typeof supabaseHttpConfig>
+  onProgress?: (loaded: number, total: number) => void
+}): Promise<void> {
+  const { sb, storagePath, body, fileLabel, contentType, accessToken, httpCfg, onProgress } = params
+  if (!sb) throw new Error('offline')
+
+  logMediaUploadMetric({
+    context: 'family-feed-media',
+    variant: storagePath,
+    bytes: body.size,
+    mime: contentType,
+  })
+
+  if (accessToken && httpCfg) {
+    await uploadFamilyFeedMediaXHR({
+      supabaseUrl: httpCfg.url,
+      anonKey: httpCfg.anonKey,
+      accessToken,
+      storagePath,
+      file: body,
+      fileName: fileLabel,
+      contentType,
+      cacheControl: '31536000',
+      onProgress,
+    })
+    return
+  }
+
+  const file = new File([body], fileLabel, { type: contentType })
+  const { error: ue } = await sb.storage.from('family-feed-media').upload(storagePath, file, {
+    upsert: true,
+    contentType,
+    cacheControl: '31536000',
+  })
+  if (ue) throw new Error(ue.message)
+}
+
 export type PublishFeedPostResult = { ok: true } | { ok: false; error: string }
 
 /**
@@ -153,18 +201,29 @@ export async function publishFamilyFeedPost(params: {
     const ext = pickExt(file, isVid)
     const ct = guessContentTypeForUpload(file, ext, isVid)
 
-    const storagePath = `${treeId}/${authorId}/${crypto.randomUUID()}.${ext}`
-    const totalBytes = file.size > 0 ? file.size : 1
+    const sizeErr = isVid ? assertFeedVideoSize(file) : assertFeedImageSize(file)
+    if (sizeErr) {
+      failures.push(`${file.name}: ${sizeErr}`)
+      fileIndex++
+      continue
+    }
+
+    const baseId = crypto.randomUUID()
+    const prefix = `${treeId}/${authorId}/${baseId}`
 
     try {
-      if (accessToken && httpCfg) {
-        await uploadFamilyFeedMediaXHR({
-          supabaseUrl: httpCfg.url,
-          anonKey: httpCfg.anonKey,
-          accessToken,
+      if (isVid) {
+        const storagePath = `${prefix}.${ext}`
+        const totalBytes = file.size > 0 ? file.size : 1
+
+        await uploadFamilyFeedObject({
+          sb,
           storagePath,
-          file,
+          body: file,
+          fileLabel: file.name || `video.${ext}`,
           contentType: ct,
+          accessToken,
+          httpCfg,
           onProgress: (loaded, total) => {
             const t = total > 0 ? total : totalBytes
             emitUpload({
@@ -178,33 +237,165 @@ export async function publishFamilyFeedPost(params: {
             })
           },
         })
-      } else {
-        const { error: ue } = await sb.storage.from('family-feed-media').upload(storagePath, file, {
-          upsert: true,
-          contentType: ct,
+
+        let posterPath: string | null = null
+        const posterBlob = await createVideoPosterBlob(file)
+        if (posterBlob && posterBlob.size > 0) {
+          posterPath = `${prefix}_poster.jpg`
+          await uploadFamilyFeedObject({
+            sb,
+            storagePath: posterPath,
+            body: posterBlob,
+            fileLabel: 'poster.jpg',
+            contentType: 'image/jpeg',
+            accessToken,
+            httpCfg,
+          })
+        }
+
+        onProgress?.({ phase: 'saving_media', fileIndex, fileCount })
+
+        const { error: me } = await sb.from('family_feed_post_media').insert({
+          post_id: postId,
+          storage_path: storagePath,
+          storage_bucket: 'family-feed-media',
+          thumb_path: posterPath,
+          medium_path: posterPath,
+          poster_path: posterPath,
+          media_kind: 'video',
+          sort_order: order++,
         })
-        if (ue) throw new Error(ue.message)
+        if (me) failures.push(`${file.name}: ${me.message}`)
+      } else {
+        try {
+          const variants = await createImageVariants(file)
+          if (variants.kind === 'passthrough') {
+            const storagePath = `${prefix}.${variants.ext}`
+            const totalBytes = variants.blob.size > 0 ? variants.blob.size : 1
+            await uploadFamilyFeedObject({
+              sb,
+              storagePath,
+              body: variants.blob,
+              fileLabel: file.name || `image.${variants.ext}`,
+              contentType: variants.mime || ct,
+              accessToken,
+              httpCfg,
+              onProgress: (loaded, total) => {
+                const t = total > 0 ? total : totalBytes
+                emitUpload({
+                  phase: 'uploading',
+                  fileIndex,
+                  fileCount,
+                  fileName: file.name,
+                  loaded,
+                  total: t,
+                  overall: overallUploadRatio(fileIndex, fileCount, loaded, t),
+                })
+              },
+            })
+            onProgress?.({ phase: 'saving_media', fileIndex, fileCount })
+            const { error: me } = await sb.from('family_feed_post_media').insert({
+              post_id: postId,
+              storage_path: storagePath,
+              storage_bucket: 'family-feed-media',
+              thumb_path: storagePath,
+              medium_path: storagePath,
+              media_kind: 'image',
+              sort_order: order++,
+              media_width: variants.width || null,
+              media_height: variants.height || null,
+            })
+            if (me) failures.push(`${file.name}: ${me.message}`)
+          } else {
+            const tp = `${prefix}_t.${variants.ext}`
+            const mp = `${prefix}_m.${variants.ext}`
+            const op = `${prefix}.${variants.ext}`
+            const parts: { path: string; blob: Blob; label: string; mime: string }[] = [
+              { path: tp, blob: variants.thumb, label: `thumb.${variants.ext}`, mime: variants.mime },
+              { path: mp, blob: variants.medium, label: `medium.${variants.ext}`, mime: variants.mime },
+              { path: op, blob: variants.original, label: `full.${variants.ext}`, mime: variants.mime },
+            ]
+            const grandTotal = parts.reduce((s, p) => s + p.blob.size, 0) || 1
+            let done = 0
+            for (const part of parts) {
+              await uploadFamilyFeedObject({
+                sb,
+                storagePath: part.path,
+                body: part.blob,
+                fileLabel: part.label,
+                contentType: part.mime,
+                accessToken,
+                httpCfg,
+                onProgress: (loaded, total) => {
+                  const t = total > 0 ? total : part.blob.size
+                  emitUpload({
+                    phase: 'uploading',
+                    fileIndex,
+                    fileCount,
+                    fileName: file.name,
+                    loaded: done + loaded,
+                    total: grandTotal,
+                    overall: overallUploadRatio(fileIndex, fileCount, done + loaded, grandTotal),
+                  })
+                },
+              })
+              done += part.blob.size
+            }
+            onProgress?.({ phase: 'saving_media', fileIndex, fileCount })
+            const { error: me } = await sb.from('family_feed_post_media').insert({
+              post_id: postId,
+              storage_path: op,
+              storage_bucket: 'family-feed-media',
+              thumb_path: tp,
+              medium_path: mp,
+              media_kind: 'image',
+              sort_order: order++,
+              media_width: variants.width,
+              media_height: variants.height,
+            })
+            if (me) failures.push(`${file.name}: ${me.message}`)
+          }
+        } catch {
+          const storagePath = `${prefix}.${ext}`
+          const totalBytes = file.size > 0 ? file.size : 1
+          await uploadFamilyFeedObject({
+            sb,
+            storagePath,
+            body: file,
+            fileLabel: file.name || `image.${ext}`,
+            contentType: ct,
+            accessToken,
+            httpCfg,
+            onProgress: (loaded, total) => {
+              const t = total > 0 ? total : totalBytes
+              emitUpload({
+                phase: 'uploading',
+                fileIndex,
+                fileCount,
+                fileName: file.name,
+                loaded,
+                total: t,
+                overall: overallUploadRatio(fileIndex, fileCount, loaded, t),
+              })
+            },
+          })
+          onProgress?.({ phase: 'saving_media', fileIndex, fileCount })
+          const { error: me } = await sb.from('family_feed_post_media').insert({
+            post_id: postId,
+            storage_path: storagePath,
+            storage_bucket: 'family-feed-media',
+            thumb_path: storagePath,
+            medium_path: storagePath,
+            media_kind: 'image',
+            sort_order: order++,
+          })
+          if (me) failures.push(`${file.name}: ${me.message}`)
+        }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       failures.push(`${file.name}: ${msg}`)
-      fileIndex++
-      continue
     }
-
-    onProgress?.({
-      phase: 'saving_media',
-      fileIndex,
-      fileCount,
-    })
-
-    const { error: me } = await sb.from('family_feed_post_media').insert({
-      post_id: postId,
-      storage_path: storagePath,
-      media_kind: isVid ? 'video' : 'image',
-      sort_order: order++,
-    })
-    if (me) failures.push(`${file.name}: ${me.message}`)
     fileIndex++
   }
 

@@ -6,12 +6,19 @@ export type FeedProfileLite = {
   id: string
   full_name: string
   avatar_url: string | null
+  avatar_thumb_path?: string | null
 }
 
 export type FeedMediaRow = {
   id: string
   post_id: string
   storage_path: string
+  storage_bucket?: string | null
+  thumb_path?: string | null
+  medium_path?: string | null
+  poster_path?: string | null
+  media_width?: number | null
+  media_height?: number | null
   media_kind: 'image' | 'video'
   sort_order: number
 }
@@ -58,15 +65,29 @@ export type FeedPostState = {
   >
 }
 
-function publicFeedMediaUrl(storagePath: string): string | null {
+export function getStoragePublicUrl(bucket: string, storagePath: string): string | null {
   const sb = getSupabase()
-  if (!sb) return null
-  const { data } = sb.storage.from('family-feed-media').getPublicUrl(storagePath)
+  if (!sb || !storagePath?.trim()) return null
+  const { data } = sb.storage.from(bucket).getPublicUrl(storagePath.trim())
   return data.publicUrl ?? null
+}
+
+export function mediaUrlMapKey(bucket: string, storagePath: string): string {
+  return `${bucket}::${storagePath.trim()}`
+}
+
+function publicFeedMediaUrl(storagePath: string): string | null {
+  return getStoragePublicUrl('family-feed-media', storagePath)
 }
 
 export function getFeedMediaPublicUrl(storagePath: string): string | null {
   return publicFeedMediaUrl(storagePath)
+}
+
+export function resolveFeedMediaPublicUrl(bucket: string | null | undefined, storagePath: string | null | undefined): string | null {
+  if (!storagePath?.trim()) return null
+  const b = bucket?.trim() || 'family-feed-media'
+  return getStoragePublicUrl(b, storagePath)
 }
 
 async function loadProfiles(ids: string[]): Promise<Map<string, FeedProfileLite>> {
@@ -74,7 +95,10 @@ async function loadProfiles(ids: string[]): Promise<Map<string, FeedProfileLite>
   const sb = getSupabase()
   if (!sb || ids.length === 0) return m
   const unique = [...new Set(ids)]
-  const { data, error } = await sb.from('profiles').select('id, full_name, avatar_url').in('id', unique)
+  const { data, error } = await sb
+    .from('profiles')
+    .select('id, full_name, avatar_url, avatar_thumb_path')
+    .in('id', unique)
   if (error || !data) return m
   for (const row of data as FeedProfileLite[]) {
     m.set(row.id, row)

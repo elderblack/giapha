@@ -1,43 +1,47 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
-import { getFamilyFeedMediaDisplayUrl } from '@/lib/feed/feedMediaDisplayUrl'
+import type { FeedMediaRow } from '@/lib/feed/feedQueries'
+import { mediaUrlMapKey } from '@/lib/feed/feedQueries'
+import { getSupabase } from '@/lib/supabase'
 
-/** Map storage_path → URL có quyền đọc (signed hoặc public fallback). */
-export function useFeedMediaDisplayUrlMap(
-  items: readonly { storage_path: string }[],
-): Record<string, string> {
-  const [map, setMap] = useState<Record<string, string>>({})
+/** Map `bucket::path` → URL công khai. */
+export function useFeedMediaDisplayUrlMap(items: readonly FeedMediaRow[]): Record<string, string> {
+  const sb = getSupabase()
 
   const sig = useMemo(() => {
-    const paths = items
-      .map((it) => it.storage_path.trim())
-      .filter(Boolean)
-    return [...new Set(paths)].sort().join('\0')
+    const rows = items ?? []
+    return rows
+      .map((m) =>
+        [
+          m.id,
+          m.storage_bucket ?? '',
+          m.storage_path,
+          m.thumb_path ?? '',
+          m.medium_path ?? '',
+          m.poster_path ?? '',
+        ].join('|'),
+      )
+      .join('\n')
   }, [items])
 
-  useEffect(() => {
-    let cancel = false
-    const paths = [...new Set(sig.split('\0').filter(Boolean))]
-    if (!paths.length) {
-      setMap({})
-      return
+  return useMemo(() => {
+    const map: Record<string, string> = {}
+    if (!sb) return map
+    const rows = items ?? []
+    for (const m of rows) {
+      const bucket = (m.storage_bucket ?? 'family-feed-media').trim()
+      const paths = new Set<string>()
+      for (const p of [m.storage_path, m.thumb_path, m.medium_path, m.poster_path]) {
+        if (p?.trim()) paths.add(p.trim())
+      }
+      for (const p of paths) {
+        const key = mediaUrlMapKey(bucket, p)
+        if (map[key]) continue
+        const u = sb.storage.from(bucket).getPublicUrl(p).data.publicUrl
+        if (u) map[key] = u
+      }
     }
-
-    void (async () => {
-      const next: Record<string, string> = {}
-      await Promise.all(
-        paths.map(async (storage_path) => {
-          const u = await getFamilyFeedMediaDisplayUrl(storage_path)
-          if (u) next[storage_path] = u
-        }),
-      )
-      if (!cancel) setMap(next)
-    })()
-
-    return () => {
-      cancel = true
-    }
-  }, [sig])
-
-  return map
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sig captures paths
+  }, [sb, sig])
 }

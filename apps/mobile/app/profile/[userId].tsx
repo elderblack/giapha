@@ -3,15 +3,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Image } from 'expo-image'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ProfilePhotosTab } from '@/components/profile/ProfilePhotosTab'
@@ -20,6 +13,7 @@ import { Text } from '@/components/Themed'
 import { FloatingBackOverMedia } from '@/components/navigation/AppStackHeader'
 import { useAuth } from '@/context/useAuth'
 import { usePalette } from '@/hooks/usePalette'
+import { profileAvatarDisplayUrl, profileCoverDisplayUrl } from '@/lib/profileAvatarUrl'
 import { getSupabase, hasSupabaseCredentials } from '@/lib/supabase'
 import { Font } from '@/theme/typography'
 
@@ -34,6 +28,8 @@ type ProfileRow = {
   username: string | null
   avatar_url: string | null
   cover_url: string | null
+  avatar_thumb_path?: string | null
+  cover_thumb_path?: string | null
   bio: string | null
   hometown: string | null
   current_city: string | null
@@ -198,8 +194,8 @@ export default function PublicProfileScreen() {
     )
   }
 
-  const avatarUrl = profile.avatar_url ?? null
-  const coverUrl = profile.cover_url ?? null
+  const avatarUrl = profileAvatarDisplayUrl(profile)
+  const coverUrl = profileCoverDisplayUrl(profile)
   const sheetBg = p.surfaceElevated
   const coverTotalH = COVER_HEIGHT + insets.top
 
@@ -207,7 +203,13 @@ export default function PublicProfileScreen() {
     <>
       <View style={{ width: screenW, height: coverTotalH, backgroundColor: p.canvasMuted }}>
         {coverUrl ? (
-          <Image source={{ uri: coverUrl }} style={styles.coverImageFull} resizeMode="cover" />
+          <Image
+            source={{ uri: coverUrl }}
+            style={styles.coverImageFull}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={coverUrl}
+          />
         ) : (
           <View style={[styles.coverImageFull, { backgroundColor: p.canvasMuted }]} />
         )}
@@ -229,7 +231,13 @@ export default function PublicProfileScreen() {
           >
             <View style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2, overflow: 'hidden' }}>
               {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }} resizeMode="cover" />
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  recyclingKey={avatarUrl}
+                />
               ) : (
                 <View style={[styles.avatarPhInner, { width: AVATAR_SIZE, height: AVATAR_SIZE, backgroundColor: p.accentMuted }]}>
                   <Text style={{ fontFamily: Font.bold, fontSize: 34, color: p.accent }}>{initials}</Text>

@@ -1,13 +1,20 @@
 const BUCKET = 'family-feed-media'
 
+const CACHE_DEFAULT = '31536000'
+
 /** POST `/storage/v1/object/{bucket}/{path}` — có tiến trình upload (XHR.upload). */
 export async function uploadFamilyFeedMediaXHR(params: {
   supabaseUrl: string
   anonKey: string
   accessToken: string
   storagePath: string
-  file: File
+  /** File hoặc Blob (kèm fileName khi Blob). */
+  file: File | Blob
+  /** Tên file khi `file` là Blob (vd. `thumb.webp`). */
+  fileName?: string
   contentType: string
+  /** max-age giây (Supabase Storage), mặc định 1 năm. */
+  cacheControl?: string
   onProgress?: (loaded: number, total: number) => void
 }): Promise<void> {
   const base = params.supabaseUrl.replace(/\/+$/, '')
@@ -25,6 +32,7 @@ export async function uploadFamilyFeedMediaXHR(params: {
     xhr.setRequestHeader('apikey', params.anonKey)
     xhr.setRequestHeader('Content-Type', params.contentType || 'application/octet-stream')
     xhr.setRequestHeader('x-upsert', 'true')
+    xhr.setRequestHeader('cache-control', `max-age=${params.cacheControl ?? CACHE_DEFAULT}`)
     xhr.setRequestHeader('x-client-info', 'giapha-web-upload-xhr')
 
     xhr.upload.onprogress = (e) => {
@@ -47,6 +55,10 @@ export async function uploadFamilyFeedMediaXHR(params: {
     }
     xhr.onerror = () => reject(new Error('Không tải lên được — lỗi mạng.'))
 
-    xhr.send(params.file)
+    const body =
+      params.file instanceof File
+        ? params.file
+        : new File([params.file], params.fileName ?? 'upload.bin', { type: params.contentType })
+    xhr.send(body)
   })
 }

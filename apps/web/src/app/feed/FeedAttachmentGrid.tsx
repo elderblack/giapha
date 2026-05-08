@@ -3,27 +3,71 @@ import { ImageOff, X } from 'lucide-react'
 import { useFeedImageLayout } from './useFeedImageLayout'
 import { FeedScrollVideo } from './FeedScrollVideo'
 import type { FeedMediaRow } from './feedQueries'
-import { getFeedMediaPublicUrl } from './feedQueries'
+import { mediaUrlMapKey, resolveFeedMediaPublicUrl } from './feedQueries'
 
 /** Một ô media (ảnh trong bài hoặc preview blob URL khi đăng). */
 export type FeedAttachmentItem = {
   key: string
+  /** Ảnh: thumb (lưới); video: URL file mp4 */
   url: string
+  mediumUrl?: string | null
+  fullUrl: string
+  posterUrl?: string | null
   kind: 'image' | 'video'
+}
+
+function pickPublicUrl(
+  urlMap: Record<string, string>,
+  bucket: string,
+  path: string | null | undefined,
+): string | null {
+  if (!path?.trim()) return null
+  const p = path.trim()
+  const k = mediaUrlMapKey(bucket, p)
+  return urlMap[k] ?? resolveFeedMediaPublicUrl(bucket, p)
 }
 
 /** Thứ tự giống FeedPostCard / lưới đính kèm (sort_order → bỏ mục không có URL). */
 export function buildFeedAttachmentItems(
   media: FeedMediaRow[],
-  urlByPath: Record<string, string>,
+  urlMap: Record<string, string>,
 ): FeedAttachmentItem[] {
   const sorted = [...media].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   const items: FeedAttachmentItem[] = []
   for (const m of sorted) {
-    const sp = m.storage_path.trim()
-    const url = urlByPath[sp] ?? getFeedMediaPublicUrl(sp)
-    if (!url) continue
-    items.push({ key: m.id, url, kind: m.media_kind })
+    const bucket = (m.storage_bucket ?? 'family-feed-media').trim()
+    if (m.media_kind === 'video') {
+      const fullU = pickPublicUrl(urlMap, bucket, m.storage_path)
+      if (!fullU) continue
+      const posterU = m.poster_path?.trim() ? pickPublicUrl(urlMap, bucket, m.poster_path) : null
+      items.push({
+        key: m.id,
+        url: fullU,
+        fullUrl: fullU,
+        posterUrl: posterU,
+        mediumUrl: null,
+        kind: 'video',
+      })
+      continue
+    }
+    const thumbP = m.thumb_path?.trim() ?? m.storage_path?.trim()
+    const medP = m.medium_path?.trim() ?? m.storage_path?.trim()
+    const fullP = m.storage_path?.trim()
+    if (!fullP) continue
+    const thumbU = pickPublicUrl(urlMap, bucket, thumbP)
+    const medU = pickPublicUrl(urlMap, bucket, medP)
+    const fullU = pickPublicUrl(urlMap, bucket, fullP)
+    const tu = thumbU ?? medU ?? fullU
+    const mu = medU ?? fullU
+    const fu = fullU ?? mu
+    if (!tu || !fu) continue
+    items.push({
+      key: m.id,
+      url: tu,
+      mediumUrl: mu !== tu ? mu : null,
+      fullUrl: fu,
+      kind: 'image',
+    })
   }
   return items
 }
@@ -130,6 +174,8 @@ function MediaTileCover({
     photoFit === 'contain' ? 'object-contain object-center' : 'object-cover object-center'
   const fit = `${base} ${object} ${className ?? ''}`
 
+  const videoSrc = item.fullUrl ?? item.url
+
   if (item.kind === 'video') {
     if (videoBroken) return <VideoBrokenPlaceholder />
     if (scrollAutoplay) {
@@ -142,7 +188,13 @@ function MediaTileCover({
             if (e.target instanceof HTMLVideoElement) onOpen()
           }}
         >
-          <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} controls />
+          <FeedScrollVideo
+            src={videoSrc}
+            posterUrl={item.posterUrl ?? undefined}
+            className={fit}
+            onError={() => setVideoBroken(true)}
+            controls
+          />
         </div>
       )
     }
@@ -155,11 +207,12 @@ function MediaTileCover({
         }}
       >
         <video
-          src={item.url}
+          src={videoSrc}
+          poster={item.posterUrl ?? undefined}
           muted
           controls
           playsInline
-          preload="metadata"
+          preload="none"
           className={fit}
           onError={() => setVideoBroken(true)}
         />
@@ -169,9 +222,16 @@ function MediaTileCover({
 
   if (imgBroken) return <BrokenImagePlaceholder />
 
+  const srcThumb = item.url
+  const srcSet =
+    item.mediumUrl && item.mediumUrl !== item.url
+      ? `${item.url} 320w, ${item.mediumUrl} 1080w`
+      : undefined
+
   return (
     <img
-      src={item.url}
+      src={srcThumb}
+      srcSet={srcSet}
       alt=""
       draggable={false}
       loading="lazy"
@@ -502,6 +562,8 @@ function SingleFeedHeroMedia({ item, onOpen }: { item: FeedAttachmentItem; onOpe
   const fit =
     'h-auto max-h-[min(88vh,_800px)] w-full max-w-full object-contain'
 
+  const heroVideoSrc = item.fullUrl ?? item.url
+
   if (item.kind === 'video') {
     if (videoBroken) return <VideoBrokenPlaceholder minHeight="min-h-[200px]" />
     return (
@@ -512,16 +574,29 @@ function SingleFeedHeroMedia({ item, onOpen }: { item: FeedAttachmentItem; onOpe
           if (e.target instanceof HTMLVideoElement) onOpen()
         }}
       >
-        <FeedScrollVideo src={item.url} className={fit} onError={() => setVideoBroken(true)} controls />
+        <FeedScrollVideo
+          src={heroVideoSrc}
+          posterUrl={item.posterUrl ?? undefined}
+          className={fit}
+          onError={() => setVideoBroken(true)}
+          controls
+        />
       </div>
     )
   }
 
   if (imgBroken) return <BrokenImagePlaceholder minHeight="min-h-[200px]" />
 
+  const heroSrc = item.mediumUrl ?? item.fullUrl ?? item.url
+  const heroSet =
+    item.mediumUrl && item.url !== item.mediumUrl
+      ? `${item.url} 320w, ${item.mediumUrl} 1080w`
+      : undefined
+
   return (
     <img
-      src={item.url}
+      src={heroSrc}
+      srcSet={heroSet}
       alt=""
       draggable={false}
       loading="lazy"

@@ -193,7 +193,12 @@ export function FeedComposer({
 
   const canPublish = !blocked && (text.trim().length > 0 || attachments.length > 0) && !publishProgress
 
-  const gridItems: FeedAttachmentItem[] = attachments.map(({ key, url, kind }) => ({ key, url, kind }))
+  const gridItems: FeedAttachmentItem[] = attachments.map(({ key, url, kind }) => ({
+    key,
+    url,
+    fullUrl: url,
+    kind,
+  }))
 
   const audId = `${baseId}-aud`
 

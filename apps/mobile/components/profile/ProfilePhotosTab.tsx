@@ -3,7 +3,6 @@ import type { ReactElement } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  Image,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -13,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
@@ -26,12 +26,19 @@ const PAGE_SIZE = 15
 type GridItem = {
   key: string
   postId: string
-  url: string
+  thumbUrl: string
+  fullUrl: string
   treeLabel: string
 }
 
 async function postsToImageItems(posts: FeedPostState[]): Promise<GridItem[]> {
-  type Raw = { key: string; postId: string; storage_path: string; treeLabel: string }
+  type Raw = {
+    key: string
+    postId: string
+    thumb_path: string
+    full_path: string
+    treeLabel: string
+  }
   const raw: Raw[] = []
   for (const p of posts) {
     const label = p.tree_name?.trim() || 'Bảng tin dòng họ'
@@ -39,18 +46,22 @@ async function postsToImageItems(posts: FeedPostState[]): Promise<GridItem[]> {
     for (const m of images) {
       const path = m.storage_path?.trim()
       if (!path) continue
+      const thumb = (m.thumb_path ?? m.storage_path)?.trim()
+      const full = (m.medium_path ?? m.storage_path)?.trim()
       raw.push({
         key: `${p.id}-${m.id}`,
         postId: p.id,
-        storage_path: path,
+        thumb_path: thumb,
+        full_path: full,
         treeLabel: label,
       })
     }
   }
   const settled = await Promise.all(
     raw.map(async (r) => {
-      const url = await getFamilyFeedMediaDisplayUrl(r.storage_path)
-      return url ? { ...r, url } : null
+      const thumbUrl = await getFamilyFeedMediaDisplayUrl(r.thumb_path)
+      const fullUrl = await getFamilyFeedMediaDisplayUrl(r.full_path)
+      return thumbUrl && fullUrl ? { ...r, thumbUrl, fullUrl } : null
     }),
   )
   return settled.filter(Boolean) as GridItem[]
@@ -204,7 +215,13 @@ export function ProfilePhotosTab(props: {
                             },
                           ]}
                         >
-                          <Image source={{ uri: im.url }} style={styles.cellImg} resizeMode="cover" />
+                          <Image
+                            source={{ uri: im.thumbUrl }}
+                            style={styles.cellImg}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            recyclingKey={im.thumbUrl}
+                          />
                         </Pressable>
                       )
                     })}
@@ -238,9 +255,11 @@ export function ProfilePhotosTab(props: {
             </View>
             <View style={styles.lbBody}>
               <Image
-                source={{ uri: flat[lightboxIdx].url }}
+                source={{ uri: flat[lightboxIdx].fullUrl }}
                 style={[styles.lbImg, { height: Math.min(winH * 0.58, 520) }]}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                recyclingKey={flat[lightboxIdx].fullUrl}
               />
               <Text style={styles.lbCaption} numberOfLines={2}>
                 {flat[lightboxIdx].treeLabel}

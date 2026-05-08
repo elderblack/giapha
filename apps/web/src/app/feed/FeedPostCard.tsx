@@ -14,6 +14,7 @@ import { formatFeedDt } from './feedDate'
 import { FeedCommentBlock } from './FeedCommentBlock'
 import { feedUserProfilePath } from './feedProfileHref'
 import { useMinLg } from '../../hooks/useMinLg'
+import { profileAvatarDisplayUrl } from '../../lib/profileAvatarUrl'
 
 const FEED_DESKTOP_COMMENT_PREVIEW = 2
 const FEED_DESKTOP_REPLY_PREVIEW = 1
@@ -200,7 +201,10 @@ export const FeedPostCard = memo(function FeedPostCardInner({
           className="shrink-0 rounded-full outline-none ring-offset-2 ring-offset-abnb-surfaceCard transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-abnb-primary/35"
           aria-label={`Hồ sơ ${profile?.full_name?.trim() || 'thành viên'}`}
         >
-          <Avatar url={profile?.avatar_url ?? null} label={initials} />
+          <Avatar
+            url={profile ? profileAvatarDisplayUrl(profile) : null}
+            label={initials}
+          />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">

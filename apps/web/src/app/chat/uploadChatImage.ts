@@ -1,3 +1,6 @@
+import { createImageVariants } from '../../lib/media/createImageVariants'
+import { assertFeedImageSize } from '../../lib/media/mediaLimits'
+import { logMediaUploadMetric } from '../../lib/media/telemetry'
 import { getSupabase } from '../../lib/supabase'
 
 const ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif']
@@ -23,22 +26,78 @@ export async function uploadChatImage(params: {
   conversationId: string
   userId: string
   file: File
-}): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+}): Promise<{ ok: true; path: string; thumbPath: string } | { ok: false; error: string }> {
   const sb = getSupabase()
   if (!sb) return { ok: false, error: 'offline' }
+
+  const cap = assertFeedImageSize(params.file)
+  if (cap) return { ok: false, error: cap }
 
   if (!params.file.type.startsWith('image/')) {
     return { ok: false, error: 'Chỉ chấp nhận file ảnh.' }
   }
 
-  const ext = sanitizeExt(params.file)
-  const path = `${params.conversationId}/${params.userId}/${crypto.randomUUID()}.${ext}`
+  const id = crypto.randomUUID()
+  const base = `${params.conversationId}/${params.userId}/${id}`
 
-  const { error } = await sb.storage.from('family-chat-media').upload(path, params.file, {
-    contentType: guessContentType(ext),
-    upsert: false,
-  })
+  try {
+    const variants = await createImageVariants(params.file)
+    if (variants.kind === 'passthrough') {
+      const ext = variants.ext || sanitizeExt(params.file)
+      const path = `${base}.${ext}`
+      const ct = variants.mime || guessContentType(ext)
+      logMediaUploadMetric({ context: 'family-chat-media', variant: path, bytes: variants.blob.size, mime: ct })
+      const { error } = await sb.storage.from('family-chat-media').upload(path, variants.blob, {
+        contentType: ct,
+        upsert: false,
+        cacheControl: '31536000',
+      })
+      if (error) return { ok: false, error: error.message }
+      return { ok: true, path, thumbPath: path }
+    }
 
-  if (error) return { ok: false, error: error.message }
-  return { ok: true, path }
+    const ext = variants.ext
+    const thumbPath = `${base}_t.${ext}`
+    const mainPath = `${base}_m.${ext}`
+    const mime = variants.mime
+
+    logMediaUploadMetric({
+      context: 'family-chat-media',
+      variant: thumbPath,
+      bytes: variants.thumb.size,
+      mime,
+    })
+    logMediaUploadMetric({
+      context: 'family-chat-media',
+      variant: mainPath,
+      bytes: variants.medium.size,
+      mime,
+    })
+
+    const upThumb = await sb.storage.from('family-chat-media').upload(thumbPath, variants.thumb, {
+      contentType: mime,
+      upsert: false,
+      cacheControl: '31536000',
+    })
+    if (upThumb.error) return { ok: false, error: upThumb.error.message }
+
+    const upMain = await sb.storage.from('family-chat-media').upload(mainPath, variants.medium, {
+      contentType: mime,
+      upsert: false,
+      cacheControl: '31536000',
+    })
+    if (upMain.error) return { ok: false, error: upMain.error.message }
+
+    return { ok: true, path: mainPath, thumbPath }
+  } catch {
+    const ext = sanitizeExt(params.file)
+    const path = `${base}.${ext}`
+    const { error } = await sb.storage.from('family-chat-media').upload(path, params.file, {
+      contentType: guessContentType(ext),
+      upsert: false,
+      cacheControl: '31536000',
+    })
+    if (error) return { ok: false, error: error.message }
+    return { ok: true, path, thumbPath: path }
+  }
 }

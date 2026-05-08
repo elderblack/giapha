@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,12 +12,14 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/Themed'
 import { useAuth } from '@/context/useAuth'
 import { usePalette } from '@/hooks/usePalette'
 import { publishProfilePickerAssetToFamilyFeed } from '@/lib/profile/publishProfileMediaToFamilyFeed'
+import { profileAvatarDisplayUrl, profileCoverDisplayUrl } from '@/lib/profileAvatarUrl'
 import { uploadProfileImageFromPickerUri } from '@/lib/profile/uploadProfileImage'
 import { getSupabase, hasSupabaseCredentials } from '@/lib/supabase'
 import { Font } from '@/theme/typography'
@@ -28,6 +29,8 @@ type ProfileRow = {
   username: string | null
   avatar_url: string | null
   cover_url: string | null
+  avatar_thumb_path?: string | null
+  cover_thumb_path?: string | null
   bio: string | null
   hometown: string | null
   current_city: string | null
@@ -77,8 +80,8 @@ export default function ProfileEditScreen() {
     setCurrentCity(row.current_city ?? '')
     setOccupation(row.occupation ?? '')
     setPhone(row.phone ?? '')
-    setAvatarUrl(row.avatar_url ?? null)
-    setCoverUrl(row.cover_url ?? null)
+    setAvatarUrl(profileAvatarDisplayUrl(row))
+    setCoverUrl(profileCoverDisplayUrl(row))
   }, [sb, uid])
 
   useEffect(() => {
@@ -124,22 +127,23 @@ export default function ProfileEditScreen() {
       setMsg({ kind: 'err', text: up.error })
       return
     }
-    const { error } = await sb.from('profiles').update({ avatar_url: up.publicUrl }).eq('id', uid)
+    const { error } = await sb
+      .from('profiles')
+      .update({ avatar_url: up.publicUrl, avatar_thumb_path: up.thumbPath })
+      .eq('id', uid)
     if (error) {
       setMsg({ kind: 'err', text: error.message })
       return
     }
-    setAvatarUrl(up.publicUrl)
+    setAvatarUrl(profileAvatarDisplayUrl({ avatar_url: up.publicUrl, avatar_thumb_path: up.thumbPath }))
     setMsg({ kind: 'ok', text: 'Đã cập nhật ảnh đại diện.' })
     void publishProfilePickerAssetToFamilyFeed(sb, {
       userId: uid,
       bodyDraft: 'Đã cập nhật ảnh đại diện.',
-      asset: {
-        uri: picked.uri,
-        mimeType: picked.mimeType ?? null,
-        type: 'image',
-        fileName: picked.fileName ?? null,
-      },
+      storageBucket: 'profile-media',
+      storagePath: up.mainStoragePath,
+      thumbPath: up.thumbPath,
+      mediumPath: up.mediumPath,
     })
   }
 
@@ -163,22 +167,23 @@ export default function ProfileEditScreen() {
       setMsg({ kind: 'err', text: up.error })
       return
     }
-    const { error } = await sb.from('profiles').update({ cover_url: up.publicUrl }).eq('id', uid)
+    const { error } = await sb
+      .from('profiles')
+      .update({ cover_url: up.publicUrl, cover_thumb_path: up.thumbPath })
+      .eq('id', uid)
     if (error) {
       setMsg({ kind: 'err', text: error.message })
       return
     }
-    setCoverUrl(up.publicUrl)
+    setCoverUrl(profileCoverDisplayUrl({ cover_url: up.publicUrl, cover_thumb_path: up.thumbPath }))
     setMsg({ kind: 'ok', text: 'Đã cập nhật ảnh bìa.' })
     void publishProfilePickerAssetToFamilyFeed(sb, {
       userId: uid,
       bodyDraft: 'Đã cập nhật ảnh bìa.',
-      asset: {
-        uri: pickedCov.uri,
-        mimeType: pickedCov.mimeType ?? null,
-        type: 'image',
-        fileName: pickedCov.fileName ?? null,
-      },
+      storageBucket: 'profile-media',
+      storagePath: up.mainStoragePath,
+      thumbPath: up.thumbPath,
+      mediumPath: up.mediumPath,
     })
   }
 
@@ -261,7 +266,13 @@ export default function ProfileEditScreen() {
             <View style={[styles.heroCard, { borderColor: p.border, backgroundColor: p.surfaceElevated }]}>
               <Pressable onPress={() => void pickCover()} disabled={coverBusy} style={styles.coverPress}>
                 {coverUrl ? (
-                  <Image source={{ uri: coverUrl }} style={styles.coverImg} resizeMode="cover" />
+                  <Image
+                    source={{ uri: coverUrl }}
+                    style={styles.coverImg}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    recyclingKey={coverUrl}
+                  />
                 ) : (
                   <View style={[styles.coverPh, { backgroundColor: p.canvasMuted }]} />
                 )}
@@ -286,7 +297,13 @@ export default function ProfileEditScreen() {
                   style={[styles.avatarRing, { borderColor: p.surfaceElevated }]}
                 >
                   {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.avatarImg}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      recyclingKey={avatarUrl}
+                    />
                   ) : (
                     <View style={[styles.avatarImg, styles.avatarPh, { backgroundColor: p.accentMuted }]}>
                       <Text style={{ fontFamily: Font.bold, fontSize: 26, color: p.accent }}>{initials}</Text>

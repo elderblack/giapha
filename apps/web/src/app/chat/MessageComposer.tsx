@@ -6,7 +6,7 @@ import { uploadChatImage } from './uploadChatImage'
 export function MessageComposer(props: {
   conversationId: string
   onSendText: (body: string) => Promise<void>
-  onSendImage: (storagePath: string) => Promise<void>
+  onSendImage: (payload: { storagePath: string; thumbPath: string }) => Promise<void>
   onTyping?: () => void
 }) {
   const { user } = useAuth()
@@ -36,7 +36,7 @@ export function MessageComposer(props: {
       file,
     })
     if (result.ok) {
-      await props.onSendImage(result.path)
+      await props.onSendImage({ storagePath: result.path, thumbPath: result.thumbPath })
     } else {
       window.alert(result.error)
     }

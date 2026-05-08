@@ -34,6 +34,7 @@ export async function uploadFamilyFeedMediaNative(params: {
         apikey: params.anonKey,
         'Content-Type': params.contentType,
         'x-upsert': 'true',
+        'cache-control': 'max-age=31536000',
       },
       ...(Platform.OS === 'ios'
         ? { sessionType: FileSystem.FileSystemSessionType.BACKGROUND }
